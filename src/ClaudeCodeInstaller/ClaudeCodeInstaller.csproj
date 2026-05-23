@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>ClaudeCodeInstaller</AssemblyName>
+
+    <!-- Compatibility: Win7 SP1+ / Win8 / Win10 / Win11 -->
+    <SupportedOSPlatformVersion>6.1</SupportedOSPlatformVersion>
+    <PlatformTarget>x64</PlatformTarget>
+
+    <!-- Single-file: self-contained, no compression = instant startup -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>false</EnableCompressionInSingleFile>
+
+    <!-- REMOVED ReadyToRun - causes "app can't run" on some Win10 builds -->
+    <PublishReadyToRun>false</PublishReadyToRun>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\scr.py" />
+    <EmbeddedResource Include="Resources\ocr.py" />
+    <EmbeddedResource Include="Resources\act.py" />
+    <EmbeddedResource Include="Resources\see.py" />
+    <EmbeddedResource Include="Resources\browser.py" />
+  </ItemGroup>
+
+</Project>
