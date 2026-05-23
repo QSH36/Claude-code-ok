@@ -150,19 +150,19 @@ public partial class Form1 : Form
     // ═══ PAGE 1: 环境 ═════════════════════════════════
     Panel BuildPage1()
     {
-        var p = new Panel(); int y = 4;
+        var p = new Panel(); int y = 8;
         p.Controls.Add(L("语言:", 0, y + 3, 9, FontStyle.Bold, Color.FromArgb(60, 68, 80)));
-        _cmbLang = new ComboBox { Left = 44, Top = y, Width = 80, DropDownStyle = ComboBoxStyle.DropDownList };
+        _cmbLang = new ComboBox { Left = 50, Top = y, Width = 80, DropDownStyle = ComboBoxStyle.DropDownList };
         _cmbLang.Items.AddRange(new[] { "中文", "English" }); _cmbLang.SelectedIndex = 0;
         _cmbLang.SelectedIndexChanged += (_, _) => { Locale.Lang = _cmbLang.Text == "English" ? "en" : "zh"; RefreshLocale(); };
         p.Controls.Add(_cmbLang);
-        p.Controls.Add(L("安装盘符:", 140, y + 3, 9, FontStyle.Bold, Color.FromArgb(60, 68, 80)));
-        _cmbDrive = new ComboBox { Left = 220, Top = y, Width = 90, Font = new Font(Font.FontFamily, 11F, FontStyle.Bold), DropDownStyle = ComboBoxStyle.DropDownList };
+        p.Controls.Add(L("安装盘符:", 150, y + 3, 9, FontStyle.Bold, Color.FromArgb(60, 68, 80)));
+        _cmbDrive = new ComboBox { Left = 230, Top = y, Width = 90, Font = new Font(Font.FontFamily, 11F, FontStyle.Bold), DropDownStyle = ComboBoxStyle.DropDownList };
         LoadDrives(_cmbDrive);
         _cmbDrive.SelectedIndexChanged += (_, _) => { _drive = _cmbDrive.Text; DetectEnv(); };
         p.Controls.Add(_cmbDrive);
-        p.Controls.Add(NBtn("重新检测", 320, y, 80, 28, Color.FromArgb(70, 80, 90), (_, _) => DetectEnv()));
-        y += 38;
+        p.Controls.Add(NBtn("重新检测", 340, y, 85, 28, Color.FromArgb(70, 80, 90), (_, _) => DetectEnv()));
+        y += 44;
         _lblNode = AddCard(p, "Node.js", ref y); _lblGit = AddCard(p, "Git", ref y);
         _lblPython = AddCard(p, "Python", ref y); _lblClaude = AddCard(p, "Claude Code", ref y);
         _lblPath = L("", 0, y + 4, 8, FontStyle.Regular, Color.FromArgb(140, 150, 165)); _lblPath.MaximumSize = new Size(740, 36); p.Controls.Add(_lblPath);
@@ -220,27 +220,28 @@ public partial class Form1 : Form
     {
         var p = new Panel();
         p.Controls.Add(L("安装配置", 0, 8, 14, FontStyle.Bold, Color.FromArgb(30, 40, 55)));
+
         // Drive
-        p.Controls.Add(L("安装盘符:", 0, 44, 10, FontStyle.Bold, Color.FromArgb(60, 68, 80)));
-        _cmbDriveSimple = new ComboBox { Left = 80, Top = 40, Width = 90, Font = new Font(Font.FontFamily, 12F, FontStyle.Bold), DropDownStyle = ComboBoxStyle.DropDownList };
+        p.Controls.Add(L("安装盘符:", 0, 52, 10, FontStyle.Bold, Color.FromArgb(60, 68, 80)));
+        _cmbDriveSimple = new ComboBox { Left = 90, Top = 48, Width = 90, Font = new Font(Font.FontFamily, 12F, FontStyle.Bold), DropDownStyle = ComboBoxStyle.DropDownList };
         LoadDrives(_cmbDriveSimple);
         _cmbDriveSimple.SelectedIndexChanged += (_, _) => { _drive = _cmbDriveSimple.Text; UpdateSimplePath(); };
         p.Controls.Add(_cmbDriveSimple);
-        _lblSimplePath = L("", 180, 44, 8, FontStyle.Regular, Color.FromArgb(120, 140, 155)); p.Controls.Add(_lblSimplePath);
+        _lblSimplePath = L("", 190, 52, 8, FontStyle.Regular, Color.FromArgb(120, 140, 155)); p.Controls.Add(_lblSimplePath);
 
         // API
-        p.Controls.Add(L("API 提供商:", 0, 88, 10, FontStyle.Bold, Color.FromArgb(60, 68, 80)));
-        _rbApiNoSimple = new RadioButton { Text = "默认 Anthropic API（无需配置）", Left = 4, Top = 116, AutoSize = true, Font = new Font(Font.FontFamily, 9.5F, FontStyle.Bold), Checked = true };
-        _rbApiYesSimple = new RadioButton { Text = "DeepSeek API（deepseek-v4-pro[1m]）", Left = 4, Top = 146, AutoSize = true, Font = new Font(Font.FontFamily, 9.5F, FontStyle.Bold) };
+        p.Controls.Add(L("API 提供商:", 0, 100, 10, FontStyle.Bold, Color.FromArgb(60, 68, 80)));
+        _rbApiNoSimple = new RadioButton { Text = "默认 Anthropic API（无需配置）", Left = 4, Top = 130, AutoSize = true, Font = new Font(Font.FontFamily, 9.5F, FontStyle.Bold), Checked = true };
+        _rbApiYesSimple = new RadioButton { Text = "DeepSeek API（deepseek-v4-pro[1m]）", Left = 4, Top = 162, AutoSize = true, Font = new Font(Font.FontFamily, 9.5F, FontStyle.Bold) };
         _rbApiYesSimple.CheckedChanged += (_, _) => _txtApiKeySimple.Enabled = _rbApiYesSimple.Checked;
         p.Controls.Add(_rbApiNoSimple); p.Controls.Add(_rbApiYesSimple);
-        p.Controls.Add(L("API Key:", 24, 178, 9, FontStyle.Bold, Color.FromArgb(60, 68, 80)));
-        _txtApiKeySimple = new TextBox { Left = 100, Top = 175, Width = 400, PasswordChar = '*', Enabled = false };
+        p.Controls.Add(L("API Key:", 24, 196, 9, FontStyle.Bold, Color.FromArgb(60, 68, 80)));
+        _txtApiKeySimple = new TextBox { Left = 100, Top = 193, Width = 400, PasswordChar = '*', Enabled = false };
         p.Controls.Add(_txtApiKeySimple);
-        p.Controls.Add(L("填入 Key 即可，4 个模型槽全预填 deepseek-v4-pro[1m]", 24, 204, 8, FontStyle.Regular, Color.FromArgb(130, 140, 155)));
+        p.Controls.Add(L("填入 Key 即可，4 个模型槽全预填 deepseek-v4-pro[1m]", 24, 224, 8, FontStyle.Regular, Color.FromArgb(130, 140, 155)));
 
         // Info
-        p.Controls.Add(L("点击下一步将自动配置：Skills全选 + 专业模式 + 截图工具 + 最强算力 + 自动更新", 0, 250, 8, FontStyle.Regular, Color.FromArgb(140, 150, 165)));
+        p.Controls.Add(L("点击下一步将自动配置：Skills全选 + 专业模式 + 截图工具 + 最强算力 + 自动更新", 0, 270, 8, FontStyle.Regular, Color.FromArgb(140, 150, 165)));
         UpdateSimplePath();
         return p;
     }
@@ -252,13 +253,13 @@ public partial class Form1 : Form
     {
         var p = new Panel();
         _chkThinking = new CheckBox { Text = "启用最大强度思考", Left = 0, Top = 4, AutoSize = true, Font = new Font(Font.FontFamily, 9F, FontStyle.Bold) };
-        _chkNoUpdate = new CheckBox { Text = "禁用自动升级", Left = 0, Top = 28, AutoSize = true, Font = new Font(Font.FontFamily, 9F, FontStyle.Bold) };
+        _chkNoUpdate = new CheckBox { Text = "禁用自动升级", Left = 300, Top = 4, AutoSize = true, Font = new Font(Font.FontFamily, 9F, FontStyle.Bold) };
         p.Controls.Add(_chkThinking); p.Controls.Add(_chkNoUpdate);
-        var btnInstall = new Button { Text = "开始安装", Left = 0, Top = 56, Width = 160, Height = 44, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(0, 170, 80), ForeColor = Color.White, Font = new Font(Font.FontFamily, 11F, FontStyle.Bold), UseVisualStyleBackColor = false, Cursor = Cursors.Hand };
+        var btnInstall = new Button { Text = "开始安装", Left = 0, Top = 34, Width = 160, Height = 44, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(0, 170, 80), ForeColor = Color.White, Font = new Font(Font.FontFamily, 11F, FontStyle.Bold), UseVisualStyleBackColor = false, Cursor = Cursors.Hand };
         btnInstall.Click += async (_, _) => await DoInstall();
         p.Controls.Add(btnInstall);
-        _bar = new ProgressBar { Left = 175, Top = 66, Width = 565, Height = 22, Style = ProgressBarStyle.Continuous }; p.Controls.Add(_bar);
-        _rtbLog = new RichTextBox { Left = 0, Top = 110, Width = 740, Height = 350, ReadOnly = true, BackColor = Color.FromArgb(28, 30, 35), ForeColor = Color.FromArgb(200, 210, 220), Font = new Font("Consolas", 8.5F), BorderStyle = BorderStyle.None }; p.Controls.Add(_rtbLog);
+        _bar = new ProgressBar { Left = 175, Top = 44, Width = 565, Height = 22, Style = ProgressBarStyle.Continuous }; p.Controls.Add(_bar);
+        _rtbLog = new RichTextBox { Left = 0, Top = 90, Width = 740, Height = 370, ReadOnly = true, BackColor = Color.FromArgb(28, 30, 35), ForeColor = Color.FromArgb(200, 210, 220), Font = new Font("Consolas", 8.5F), BorderStyle = BorderStyle.None }; p.Controls.Add(_rtbLog);
         return p;
     }
 
