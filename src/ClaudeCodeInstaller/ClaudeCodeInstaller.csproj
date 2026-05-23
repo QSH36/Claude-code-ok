@@ -8,7 +8,19 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>ClaudeCodeInstaller</AssemblyName>
 
-    <!-- Compatibility: Win7 SP1+ / Win8 / Win10 / Win11 -->
+    <!-- App identity: publisher = Shimizu -->
+    <Company>Shimizu</Company>
+    <Product>Claude Code Installer</Product>
+    <Description>Claude Code one-click installer for Windows</Description>
+    <Copyright>Shimizu 2026</Copyright>
+    <Version>10.0.0.0</Version>
+    <FileVersion>10.0.0.0</FileVersion>
+
+    <!-- Icon + Manifest -->
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+
+    <!-- Compatibility -->
     <SupportedOSPlatformVersion>6.1</SupportedOSPlatformVersion>
     <PlatformTarget>x64</PlatformTarget>
 
@@ -18,8 +30,6 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <EnableCompressionInSingleFile>false</EnableCompressionInSingleFile>
-
-    <!-- REMOVED ReadyToRun - causes "app can't run" on some Win10 builds -->
     <PublishReadyToRun>false</PublishReadyToRun>
   </PropertyGroup>
 
