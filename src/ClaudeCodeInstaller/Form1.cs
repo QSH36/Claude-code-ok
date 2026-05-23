@@ -62,7 +62,7 @@ public partial class Form1 : Form
 
     public Form1()
     {
-        Text = "Claude Code 安装器 v10";
+        Text = "Claude Code 安装器 v1.0.6";
         Size = new Size(800, 620);
         StartPosition = FormStartPosition.CenterScreen;
         FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = false;
@@ -290,11 +290,11 @@ public partial class Form1 : Form
         var P = (Action<int, int>)((c, t) => BeginInvoke(() => { _bar.Maximum = t; _bar.Value = Math.Min(c, t); }));
 
         L("═══════════════════════════════════");
-        L($"  Claude Code Installer v10 [{( _isSimple ? "小白" : "专业" )}] | Shimizu");
+        L($"  Claude Code Installer v1.0.6 [{( _isSimple ? "小白" : "专业" )}] | Shimizu");
         L($"  Drive:{_drive}  Node:{NodePath}  Git:{GitPath}");
         L("═══════════════════════════════════\r\n");
 
-        int total = 7 + (_chkTools.Checked ? 4 : 0) + _skillChecks.Count(c => c.Checked) + ((_rbApiYes.Checked && _txtApiKey.Text.Length > 0) || (_rbApiYesSimple.Checked && _txtApiKeySimple.Text.Length > 0) ? 1 : 0) + (_chkLogic.Checked ? 1 : 0) + 1;
+        int total = 9 + (_chkTools.Checked ? 3 : 0) + _skillChecks.Count(c => c.Checked) + ((_rbApiYes.Checked && _txtApiKey.Text.Length > 0) || (_rbApiYesSimple.Checked && _txtApiKeySimple.Text.Length > 0) ? 1 : 0) + (_chkLogic.Checked ? 1 : 0);
         int step = 0;
 
         try
@@ -302,7 +302,7 @@ public partial class Form1 : Form
             step++; P(step, total); L($"[{step}/{total}] Node.js v20.18.0..."); if (!_nodeOk) { await DL("https://nodejs.org/dist/v20.18.0/node-v20.18.0-x64.msi", "node.msi", L); await RunAsync("msiexec", $"/i \"{Tmp("node.msi")}\" /qn INSTALLDIR=\"{NodePath}\"", L); } else L("  已安装");
             step++; P(step, total); L($"[{step}/{total}] Git..."); if (!_gitOk) { await DL("https://github.com/git-for-windows/git/releases/download/v2.45.2.windows.1/Git-2.45.2-64-bit.exe", "git.exe", L); await RunAsync(Tmp("git.exe"), $"/VERYSILENT /NORESTART /DIR=\"{GitPath}\"", L); } else L("  已安装");
             step++; P(step, total); L($"[{step}/{total}] npm prefix → {NpmPrefix}"); if (!Directory.Exists(NpmPrefix)) Directory.CreateDirectory(NpmPrefix); await RunAsync("npm", $"config set prefix \"{NpmPrefix}\"", L); UpdatePath(NodePath, NpmPrefix, Path.Combine(GitPath, "cmd"));
-            step++; P(step, total); L($"[{step}/{total}] Claude Code (npm install -g)..."); await RunAsync("npm", "install -g --registry=https://registry.npmmirror.com @anthropic-ai/claude-code", L);
+            step++; P(step, total); L($"[{step}/{total}] Claude Code (原生 .exe 下载)..."); await InstallClaudeNative(L);
             step++; P(step, total); L($"[{step}/{total}] CC Switch..."); await InstallCCSwitch(L);
 
             if (_chkTools.Checked)
@@ -316,10 +316,13 @@ public partial class Form1 : Form
 
             foreach (var sk in _skills) { int idx = Array.FindIndex(_skills, x => x.n == sk.n); if (!_skillChecks[idx].Checked) continue; step++; P(step, total); L($"[{step}/{total}] Skill: {sk.n}..."); if (!sk.i.StartsWith("genskills--")) await RunAsync("npx", $"-y --registry=https://registry.npmmirror.com skills add {sk.i} -g", L); }
 
-            step++; P(step, total); L($"[{step}/{total}] 配置 settings.json..."); WriteSettings(L);
-            if (_chkLogic.Checked) { step++; P(step, total); L($"[{step}/{total}] 截图辅助逻辑..."); WriteCLAUDE(L); }
             var apiKey = _isSimple ? _txtApiKeySimple.Text.Trim() : _txtApiKey.Text.Trim();
+            step++; P(step, total); L($"[{step}/{total}] 写入 .claude.json (跳过登录)..."); WriteClaudeJson(L);
+            step++; P(step, total); L($"[{step}/{total}] 配置 settings.json..."); WriteSettings(L);
             if ((_rbApiYes.Checked || _rbApiYesSimple.Checked) && apiKey.Length > 0) { step++; P(step, total); L($"[{step}/{total}] DeepSeek API..."); WriteDS(apiKey, L); }
+            if (_chkLogic.Checked) { step++; P(step, total); L($"[{step}/{total}] 截图辅助逻辑..."); WriteCLAUDE(L); }
+
+            step++; P(step, total); L($"[{step}/{total}] claude install (配置启动器 + PATH)..."); await RunAsync(Path.Combine(ToolsPath, "claude.exe"), "install", L);
 
             step++; P(step, total); L($"[{step}/{total}] 创建桌面快捷方式..."); CreateShortcuts(L);
 
@@ -339,16 +342,50 @@ public partial class Form1 : Form
         {
             var desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
             dynamic shell = Activator.CreateInstance(Type.GetTypeFromProgID("WScript.Shell")!)!;
-            var claudeBin = Path.Combine(NpmPrefix, "claude.cmd");
-            if (!File.Exists(claudeBin)) claudeBin = Path.Combine(NpmPrefix, "node_modules", ".bin", "claude.cmd");
-            if (!File.Exists(claudeBin)) claudeBin = "claude";
+
+            // Find claude executable — prefer .exe, fall back to .cmd, direct shortcut (no cmd.exe /k)
+            string? claudeTarget = null;
+            var searchPaths = new[] {
+                Path.Combine(ToolsPath, "claude.exe"),
+                Path.Combine(NpmPrefix, "claude.exe"),
+                Path.Combine(NpmPrefix, "claude.cmd"),
+                Path.Combine(NpmPrefix, "node_modules", ".bin", "claude.exe"),
+                Path.Combine(NpmPrefix, "node_modules", ".bin", "claude.cmd"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Claude Code", "claude.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Claude Code", "claude.exe"),
+            };
+            foreach (var p in searchPaths) { if (File.Exists(p)) { claudeTarget = p; break; } }
+            // Fallback: check claude.cmd in PATH, or just "claude"
+            if (claudeTarget == null) claudeTarget = "claude";
+
             dynamic cl = shell.CreateShortcut(Path.Combine(desktop, "Claude Code.lnk"));
-            cl.TargetPath = "cmd.exe"; cl.Arguments = $"/k \"{claudeBin}\""; cl.Description = "Claude Code"; cl.WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile); cl.Save();
-            log("  ✓ Claude Code.lnk");
+            cl.TargetPath = claudeTarget;
+            cl.Description = "Claude Code";
+            cl.WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            cl.Save();
+            log($"  ✓ Claude Code.lnk → {claudeTarget}");
+
+            // Find CC Switch — search common install paths
             string? ccExe = null;
-            foreach (var p in new[] { Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "CC Switch", "CC Switch.exe"), Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "CC Switch", "CC Switch.exe"), Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "CC Switch", "CC Switch.exe") }) { if (File.Exists(p)) { ccExe = p; break; } }
-            if (ccExe != null) { dynamic cc = shell.CreateShortcut(Path.Combine(desktop, "CC Switch.lnk")); cc.TargetPath = ccExe; cc.Description = "CC Switch"; cc.Save(); log("  ✓ CC Switch.lnk"); }
-            else log("  ⚠ CC Switch path not found");
+            var ccSearch = new[] {
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "CC Switch", "cc-switch.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "CC Switch", "CC Switch.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "CC Switch", "cc-switch.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "CC Switch", "CC Switch.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "CC Switch", "cc-switch.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "CC Switch", "CC Switch.exe"),
+            };
+            foreach (var p in ccSearch) { if (File.Exists(p)) { ccExe = p; break; } }
+
+            if (ccExe != null)
+            {
+                dynamic cc = shell.CreateShortcut(Path.Combine(desktop, "CC Switch.lnk"));
+                cc.TargetPath = ccExe;
+                cc.Description = "CC Switch";
+                cc.Save();
+                log($"  ✓ CC Switch.lnk → {ccExe}");
+            }
+            else log("  ⚠ CC Switch not found — install from https://github.com/farion1231/cc-switch");
         }
         catch (Exception ex) { log($"  快捷方式: {ex.Message}"); }
     }
@@ -356,12 +393,70 @@ public partial class Form1 : Form
     // ── Install helpers ───────────────────────────────
     async Task<string> RunAsync(string cmd, string args, Action<string> log) { try { var p = new Process { StartInfo = new ProcessStartInfo(cmd, args) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true } }; p.Start(); var oT = p.StandardOutput.ReadToEndAsync(); var eT = p.StandardError.ReadToEndAsync(); var r = await Task.WhenAll(oT, eT); await p.WaitForExitAsync(); var txt = (r[0] + r[1]).Trim(); if (txt.Length > 0) log(txt); return txt; } catch (Exception ex) { log($"[ERR] {ex.Message}"); return ""; } }
     async Task<bool> DL(string url, string fn, Action<string> log) { var path = Tmp(fn); log($"  下载: {fn}"); var urls = new List<string>(); if (url.Contains("nodejs.org/dist")) { urls.Add(url.Replace("nodejs.org/dist", "npmmirror.com/mirrors/node")); urls.Add(url.Replace("nodejs.org/dist", "mirrors.tuna.tsinghua.edu.cn/nodejs-release")); urls.Add(url.Replace("nodejs.org/dist", "mirrors.ustc.edu.cn/node")); urls.Add(url); } else if (url.Contains("github.com/git-for-windows")) { urls.Add(url.Replace("github.com/git-for-windows/git/releases/download/v2.45.2.windows.1", "npmmirror.com/mirrors/git-for-windows/v2.45.2.windows.1")); urls.Add(url.Replace("github.com", "mirror.ghproxy.com/https://github.com")); urls.Add(url); } else if (url.Contains("github.com")) { urls.Add(url.Replace("github.com", "mirror.ghproxy.com/https://github.com")); urls.Add(url.Replace("github.com", "ghproxy.net/https://github.com")); urls.Add(url.Replace("github.com", "gitclone.com/github.com")); urls.Add(url); } else if (url.Contains("python.org")) { urls.Add(url.Replace("www.python.org/ftp/python", "npmmirror.com/mirrors/python")); urls.Add(url.Replace("www.python.org/ftp/python", "mirrors.huaweicloud.com/python")); urls.Add(url.Replace("www.python.org/ftp/python", "mirrors.tuna.tsinghua.edu.cn/python")); urls.Add(url); } else { urls.Add(url); } int idx=0; foreach (var u in urls) { idx++; try { using var wc = new WebClient(); wc.Headers.Add("User-Agent", "CCI/1.0"); var lastPct = 0; wc.DownloadProgressChanged += (_, e) => { var pct = e.ProgressPercentage; if (pct > lastPct+15) { lastPct = pct; log($"    [{idx}/{urls.Count}] {pct}%"); } }; var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(15)); await wc.DownloadFileTaskAsync(new Uri(u), path).WaitAsync(cts.Token); if (File.Exists(path) && new FileInfo(path).Length > 50000) { log($"    ✓ 完成"); return true; } } catch (Exception ex) { log($"    ✗ [{idx}/{urls.Count}] {ex.Message}"); } } return false; }
+    async Task InstallClaudeNative(Action<string> log)
+    {
+        var targetExe = Path.Combine(ToolsPath, "claude.exe");
+        if (File.Exists(targetExe)) { log("  claude.exe 已存在"); return; }
+        Directory.CreateDirectory(ToolsPath);
+
+        // 1. Resolve version
+        string? version = null;
+        var verCandidates = new[] {
+            "https://downloads.claude.ai/claude-code-releases/latest",
+            "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/latest",
+        };
+        foreach (var vu in verCandidates) {
+            try {
+                using var wc = new System.Net.WebClient();
+                wc.Headers.Add("User-Agent", "CCI/1.0");
+                var cts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+                var v = (await wc.DownloadStringTaskAsync(vu).WaitAsync(cts.Token)).Trim();
+                if (!string.IsNullOrEmpty(v) && v.Length < 20) { version = v; break; }
+            } catch { }
+        }
+        if (string.IsNullOrEmpty(version)) throw new Exception("无法获取 Claude Code 最新版本号，请检查网络");
+        log($"  版本: {version}");
+
+        // 2. Build download URL chain (original + GCS + ghproxy mirrors)
+        var plat = "win32-x64";
+        var urls = new List<string> {
+            $"https://downloads.claude.ai/claude-code-releases/{version}/{plat}/claude.exe",
+            $"https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/{version}/{plat}/claude.exe",
+        };
+        // prepend mirror-wrapped URLs for China
+        var mirrors = new[] { "https://ghproxy.net/", "https://mirror.ghproxy.com/" };
+        var org = urls.ToList();
+        foreach (var m in mirrors) foreach (var u in org) urls.Insert(0, m + u);
+
+        // 3. Download with 30-min timeout (≈150MB)
+        var downloaded = false;
+        foreach (var u in urls) {
+            try {
+                log($"  下载: {new Uri(u).Host}...");
+                var tmp = Path.GetTempFileName();
+                using var wc = new System.Net.WebClient();
+                wc.Headers.Add("User-Agent", "CCI/1.0");
+                var lastPct = 0;
+                wc.DownloadProgressChanged += (_, e) => { if (e.ProgressPercentage > lastPct + 10) { lastPct = e.ProgressPercentage; log($"    {e.ProgressPercentage}%"); } };
+                var cts = new CancellationTokenSource(TimeSpan.FromMinutes(30));
+                await wc.DownloadFileTaskAsync(new Uri(u), tmp).WaitAsync(cts.Token);
+                if (File.Exists(tmp) && new FileInfo(tmp).Length > 50_000_000) { File.Move(tmp, targetExe, true); downloaded = true; break; }
+                try { File.Delete(tmp); } catch { }
+            } catch (Exception ex) { log($"    ✗ {ex.Message}"); }
+        }
+        if (!downloaded) throw new Exception("claude.exe 下载失败，请检查网络或使用代理。可从 https://claude.ai/install 手动下载。");
+
+        log($"  → {targetExe}");
+        UpdatePath(ToolsPath);
+    }
+
     async Task InstallCCSwitch(Action<string> log) { try { using var wc = new WebClient(); wc.Headers.Add("User-Agent", "CCI/1.0"); var json = await wc.DownloadStringTaskAsync("https://api.github.com/repos/farion1231/cc-switch/releases/latest"); using var doc = JsonDocument.Parse(json); string? dl = null; foreach (var a in doc.RootElement.GetProperty("assets").EnumerateArray()) { var n = a.GetProperty("name").GetString() ?? ""; if (n.EndsWith(".msi")) { dl = a.GetProperty("browser_download_url").GetString(); break; } if (n.EndsWith(".exe") && dl == null) dl = a.GetProperty("browser_download_url").GetString(); } if (dl == null) return; var ext = Path.GetExtension(dl); var p = Tmp($"ccswitch{ext}"); if (await DL(dl, $"ccswitch{ext}", log)) { if (ext == ".msi") await RunAsync("msiexec", $"/i \"{p}\" /qn", log); else await RunAsync(p, "/VERYSILENT", log); } } catch { } }
     void InstallTools(Action<string> log) { Directory.CreateDirectory(ToolsPath); var asm = System.Reflection.Assembly.GetExecutingAssembly(); foreach (var name in new[] { "scr.py", "ocr.py", "act.py", "see.py", "browser.py" }) { var rn = asm.GetManifestResourceNames().FirstOrDefault(r => r.EndsWith(name)); if (rn == null) continue; using var s = asm.GetManifestResourceStream(rn); if (s == null) continue; using var sr = new StreamReader(s, Encoding.UTF8); File.WriteAllText(Path.Combine(ToolsPath, name), sr.ReadToEnd(), Encoding.UTF8); } log("  截图工具已安装"); }
     async Task InstallPy(Action<string> log) { if (!_pythonOk) { await DL("https://www.python.org/ftp/python/3.12.4/python-3.12.4-amd64.exe", "python.exe", log); var dir = Path.Combine(_drive, "Python312"); await RunAsync(Tmp("python.exe"), $"/quiet InstallAllUsers=1 TargetDir=\"{dir}\" Include_pip=1 Include_test=0", log); _pythonPath = Path.Combine(dir, "python.exe"); _pythonOk = true; } if (_pythonOk) await RunAsync(_pythonPath, $"-m pip install --target \"{PipPath}\" -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn mss pytesseract pyautogui pillow pygetwindow playwright", log); }
     async Task InstallTess(Action<string> log) { if (await DL("https://github.com/UB-Mannheim/tesseract/releases/download/v5.3.3.20231005/tesseract-ocr-w64-setup-5.3.3.20231005.exe", "tesseract.exe", log)) await RunAsync(Tmp("tesseract.exe"), $"/S /D={Path.Combine(_drive, "Tesseract-OCR")}", log); }
-    void WriteSettings(Action<string> log) { Directory.CreateDirectory(ClaudeConfigDir); var path = Path.Combine(ClaudeConfigDir, "settings.json"); var perms = @"{ ""allow"":[""Bash(*)"",""PowerShell(*)"",""Read(*)"",""Write(*)"",""Edit(*)"",""Glob(*)"",""Grep(*)"",""WebFetch(*)"",""WebSearch(*)"",""Agent(*)"",""AskUserQuestion(*)"",""TaskCreate"",""TaskUpdate(*)"",""TaskList"",""TaskGet"",""TaskOutput(*)"",""TaskStop(*)"",""Monitor(*)"",""CronCreate(*)"",""CronDelete"",""CronList"",""PushNotification"",""ScheduleWakeup"",""EnterPlanMode"",""ExitPlanMode"",""EnterWorktree"",""ExitWorktree"",""Skill(*)"",""SendMessage(*)"",], ""defaultMode"":""" + (_rbPro.Checked ? "bypassPermissions" : "default") + @"""}"; try { var node = File.Exists(path) ? JsonNode.Parse(File.ReadAllText(path, Encoding.UTF8)) : JsonNode.Parse("{}"); if (node != null) { node["permissions"] = JsonNode.Parse(perms); if (_chkThinking.Checked) { node["thinking"] = "enabled"; node["thinkingBudget"] = "maximum"; } if (_chkNoUpdate.Checked) node["autoUpdatesChannel"] = "none"; File.WriteAllText(path, node.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), Encoding.UTF8); } } catch { File.WriteAllText(path, "{\n  \"permissions\":" + perms + "\n}\n", Encoding.UTF8); } log("  → " + path); }
-    void WriteDS(string key, Action<string> log) { var path = Path.Combine(ClaudeConfigDir, "settings.json"); try { var node = JsonNode.Parse(File.Exists(path) ? File.ReadAllText(path, Encoding.UTF8) : "{}"); if (node != null) { var env = node["env"] as JsonObject ?? new JsonObject(); node["env"] = env; env["ANTHROPIC_BASE_URL"] = "https://api.deepseek.com/anthropic"; env["ANTHROPIC_AUTH_TOKEN"] = key; env["ANTHROPIC_MODEL"] = "deepseek-v4-pro[1m]"; env["ANTHROPIC_DEFAULT_HAIKU_MODEL"] = "deepseek-v4-pro[1m]"; env["ANTHROPIC_DEFAULT_SONNET_MODEL"] = "deepseek-v4-pro[1m]"; env["ANTHROPIC_DEFAULT_OPUS_MODEL"] = "deepseek-v4-pro[1m]"; File.WriteAllText(path, node.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), Encoding.UTF8); } } catch { } log("  DeepSeek API 已配置"); }
+    void WriteSettings(Action<string> log) { Directory.CreateDirectory(ClaudeConfigDir); var path = Path.Combine(ClaudeConfigDir, "settings.json"); var perms = @"{ ""allow"":[""Bash(*)"",""PowerShell(*)"",""Read(*)"",""Write(*)"",""Edit(*)"",""Glob(*)"",""Grep(*)"",""WebFetch(*)"",""WebSearch(*)"",""Agent(*)"",""AskUserQuestion(*)"",""TaskCreate"",""TaskUpdate(*)"",""TaskList"",""TaskGet"",""TaskOutput(*)"",""TaskStop(*)"",""Monitor(*)"",""CronCreate(*)"",""CronDelete"",""CronList"",""PushNotification"",""ScheduleWakeup"",""EnterPlanMode"",""ExitPlanMode"",""EnterWorktree"",""ExitWorktree"",""Skill(*)"",""SendMessage(*)"",""SkillIssue(*)"",""NotebookEdit(*)"",""BashOutput(*)"",""KillShell(*)"",""TodoWrite(*)"",""mcp__plugin_playwright_playwright__*""], ""defaultMode"":""" + (_rbPro.Checked ? "bypassPermissions" : "default") + @"""}"; try { JsonNode node; if (File.Exists(path)) { node = JsonNode.Parse(File.ReadAllText(path, Encoding.UTF8)) ?? JsonNode.Parse("{}")!; } else { node = JsonNode.Parse("{}")!; } node["permissions"] = JsonNode.Parse(perms); node["theme"] = "dark"; if (_chkThinking.Checked) { node["thinking"] = "enabled"; node["thinkingBudget"] = "maximum"; } if (_chkNoUpdate.Checked) node["autoUpdatesChannel"] = "none"; File.WriteAllText(path, node.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), Encoding.UTF8); } catch { var fallback = new JsonObject { ["theme"] = "dark", ["permissions"] = JsonNode.Parse(perms) }; if (_chkThinking.Checked) { fallback["thinking"] = "enabled"; fallback["thinkingBudget"] = "maximum"; } if (_chkNoUpdate.Checked) fallback["autoUpdatesChannel"] = "none"; File.WriteAllText(path, fallback.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), Encoding.UTF8); } log("  → " + path); }
+    void WriteDS(string key, Action<string> log) { var path = Path.Combine(ClaudeConfigDir, "settings.json"); try { JsonNode node; if (File.Exists(path)) { node = JsonNode.Parse(File.ReadAllText(path, Encoding.UTF8)) ?? new JsonObject(); } else { node = new JsonObject(); } var env = node["env"] as JsonObject ?? new JsonObject(); node["env"] = env; env["ANTHROPIC_BASE_URL"] = "https://api.deepseek.com/anthropic"; env["ANTHROPIC_AUTH_TOKEN"] = key; env["ANTHROPIC_MODEL"] = "deepseek-v4-pro[1m]"; env["ANTHROPIC_DEFAULT_OPUS_MODEL"] = "deepseek-v4-pro[1m]"; env["ANTHROPIC_DEFAULT_SONNET_MODEL"] = "deepseek-v4-pro[1m]"; env["ANTHROPIC_DEFAULT_HAIKU_MODEL"] = "deepseek-v4-flash"; env["CLAUDE_CODE_SUBAGENT_MODEL"] = "deepseek-v4-flash"; env["CLAUDE_CODE_EFFORT_LEVEL"] = "max"; File.WriteAllText(path, node.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), Encoding.UTF8); log("  DeepSeek API 已配置 (v4-pro + v4-flash subagent)"); } catch (Exception ex) { log($"  DeepSeek 配置失败: {ex.Message}"); } }
+    void WriteClaudeJson(Action<string> log) { var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude.json"); try { var node = new JsonObject(); node["hasCompletedOnboarding"] = true; File.WriteAllText(path, node.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), Encoding.UTF8); log("  → " + path); } catch (Exception ex) { log($"  .claude.json failed: {ex.Message}"); } }
     void WriteCLAUDE(Action<string> log) { var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "CLAUDE.md"); try { var rule = "\n\n# Screenshot Assist\nWhen user request is ambiguous, ask:\n\"Would you like me to take a screenshot?\"\n"; if (File.Exists(path)) { var e = File.ReadAllText(path, Encoding.UTF8); if (!e.Contains("Screenshot Assist")) File.WriteAllText(path, e + rule, Encoding.UTF8); } else File.WriteAllText(path, rule.Trim(), Encoding.UTF8); log("  → " + path); } catch { } }
     void UpdatePath(params string[] dirs) { try { var cur = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.User) ?? ""; foreach (var d in dirs) { var c = d.TrimEnd('\\', '/'); if (!cur.Split(';').Any(e => e.TrimEnd('\\', '/').Equals(c, StringComparison.OrdinalIgnoreCase))) cur = c + ";" + cur; } Environment.SetEnvironmentVariable("PATH", cur, EnvironmentVariableTarget.User); } catch { } }
     string Tmp(string fn) => Path.Combine(Path.GetTempPath(), fn);
