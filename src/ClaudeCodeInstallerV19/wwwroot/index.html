@@ -155,9 +155,62 @@ const S = {
   showCustomLogic: false, showCustomPaths: false,
   toolDrives: {}, skills: [], maxThinking: true, noUpdate: false,
   installing: false, installDone: false, timer: null,
-  port: window.location.port || '5000'
+  port: window.location.port || '5000', lang: 'zh'
 };
 const BASE = () => `http://localhost:${S.port}`;
+
+// ═══ i18n ═══
+const TXT = {
+  welcome_title: { zh:'选择安装方式', en:'Choose Installation Mode' },
+  welcome_pro: { zh:'我是专业用户', en:'Professional User' },
+  welcome_pro_desc: { zh:'逐步选择 Skills、工具、安全模式、API 配置', en:'Step-by-step: Skills, Tools, Security, API' },
+  welcome_simple: { zh:'我是小白用户', en:'Simple User' },
+  welcome_simple_desc: { zh:'简易安装 · 快速配置', en:'Quick setup, one-click install' },
+  welcome_footer: { zh:'专业模式：完整控制安装过程 | 小白模式：简易安装 · 快速配置', en:'Pro: Full control | Simple: Quick setup' },
+  btn_back: { zh:'← 上一步', en:'← Back' },
+  btn_next: { zh:'下一步 →', en:'Next →' },
+  nav_env: { zh:'环境检测', en:'Environment' },
+  nav_skills: { zh:'Skills 选择', en:'Skills' },
+  nav_tools: { zh:'工具与逻辑', en:'Tools & Logic' },
+  nav_security: { zh:'安全模式', en:'Security' },
+  nav_api: { zh:'API 配置', en:'API Config' },
+  nav_config: { zh:'安装配置', en:'Install Config' },
+  nav_install: { zh:'安装', en:'Install' },
+  step_of: { zh:'步 / 共 3 步', en:' of 3' },
+  detect_btn: { zh:'⟳ 重新检测', en:'⟳ Re-detect' },
+  select_all: { zh:'全选 / 取消全选', en:'Select All / Deselect' },
+  btn_install: { zh:'开始安装', en:'Start Install' },
+  installed: { zh:'已安装', en:'Installed' },
+  not_installed: { zh:'未安装', en:'Not installed' },
+  detecting: { zh:'检测中...', en:'Detecting...' },
+};
+function T(key) { return (TXT[key]||{})[S.lang] || key; }
+
+function applyLang() {
+  // Update nav buttons
+  const bb = document.querySelector('#navBar .btn-back'); if (bb) bb.textContent = T('btn_back');
+  const bn = document.querySelector('#navBar .btn-next'); if (bn) bn.textContent = T('btn_next');
+  // Update detect btn
+  const db = document.getElementById('detectBtn'); if (db) db.textContent = T('detect_btn');
+  // Update install btn
+  const ib = document.getElementById('btnInstall'); if (ib) ib.textContent = T('btn_install');
+  // Re-render current page strings
+  if (S.page === 0) updateWelcomeText();
+  if (S.page === 2) updateSkillsText();
+}
+function updateWelcomeText() {
+  const wel = document.querySelector('#pg0 .ct');
+  if (!wel) return;
+  wel.querySelector('div:first-child').textContent = T('welcome_title');
+  const cards = wel.querySelectorAll('.card');
+  if (cards[0]) { cards[0].querySelector('h3').textContent = T('welcome_pro'); cards[0].querySelector('p').textContent = T('welcome_pro_desc'); }
+  if (cards[1]) { cards[1].querySelector('h3').textContent = T('welcome_simple'); cards[1].querySelector('p').textContent = T('welcome_simple_desc'); }
+  const ft = wel.querySelector('div:last-child');
+  if (ft) ft.textContent = T('welcome_footer');
+}
+function updateSkillsText() {
+  const p = document.getElementById('pillAll'); if (p) p.textContent = T('select_all');
+}
 
 const SKILLS = [
   'obra/superpowers','vercel-labs/skills@find-skills','document-skills@anthropic-agent-skills',
@@ -208,9 +261,10 @@ function renderAll() {
   <div class="banner step"><div class="badge">1</div><span class="st">环境检测</span></div>
   <div class="ct">
     <div class="flow-row">
-      <span>语言:</span><select id="langSel"><option>中文</option><option>English</option></select>
-      <span style="margin-left:8px">安装盘符:</span><select id="envDrive" onchange="S.drive=this.value">${optDrive(S.drive)}</select>
-      <button class="btn-sm" onclick="detectEnv()">⟳ 重新检测</button>
+      <span style="font-weight:700;font-size:12px">语言 / Language:</span>
+      <select id="langSel" onchange="switchLang(this.value)" style="width:90px"><option value="zh">中文</option><option value="en">English</option></select>
+      <span style="margin-left:8px;font-weight:700;font-size:12px">安装盘符:</span><select id="envDrive" onchange="S.drive=this.value">${optDrive(S.drive)}</select>
+      <button class="btn-sm" id="detectBtn" onclick="detectEnv()">⟳ 重新检测</button>
     </div>
     <div class="stat-cards" id="statCards" style="margin-top:14px"></div>
     <div id="envPath" style="margin-top:10px;font-size:10px;color:var(--text2)"></div>
@@ -336,25 +390,32 @@ function goBack() {
   else { if (S.page>0) setPage(S.page-1); }
 }
 
+// ═══ LANGUAGE ═══
+function switchLang(lang) {
+  S.lang = lang;
+  applyLang();
+  // Re-render current page-specific text
+  if (S.page === 1) detectEnv();
+  if (S.page === 2) updateSkillsText();
+}
+
 // ═══ PAGE 1: ENV DETECTION ═══
 function detectEnv() {
   const cards = document.getElementById('statCards');
   const pathEl = document.getElementById('envPath');
-  // Real detection via cmd
   const items = [
-    {n:'Node.js',ok:false,ver:'检测中...'},
-    {n:'Git',ok:false,ver:'检测中...'},
-    {n:'Python',ok:false,ver:'检测中...'},
-    {n:'Claude Code',ok:false,ver:'检测中...'},
+    {n:'Node.js',ok:false,ver:T('detecting')},
+    {n:'Git',ok:false,ver:T('detecting')},
+    {n:'Python',ok:false,ver:T('detecting')},
+    {n:'Claude Code',ok:false,ver:T('detecting')},
   ];
-  cards.innerHTML = items.map(i => `<div class="stat-card"><div class="sdot"></div><span class="sn">${i.n}</span><span class="sv">${i.ver}</span></div>`).join('');
+  cards.innerHTML = items.map(i => `<div class="stat-card"><div class="sdot"></div><span class="sn">${i.n}</span><span class="sv" id="sv${i.n}">${i.ver}</span></div>`).join('');
   pathEl.textContent = `路径: Node → ${S.drive}\\Claude Code tool\\NodeJS  Git → ${S.drive}\\Claude Code tool\\Git  npm → ${S.drive}\\Claude Code tool\\npm-global`;
 
-  // Async real check
-  checkCmd('node','--version').then(v => updateStat(0, v, 'v'));
-  checkCmd('git','--version').then(v => updateStat(1, v, 'git version '));
-  checkCmd('python','--version').then(v => updateStat(2, v, 'Python '));
-  checkCmd('claude','--version').then(v => updateStat(3, v, ''));
+  checkCmd('node','--version').then(v => updateStat(0, 'Node.js', v, 'v'));
+  checkCmd('git','--version').then(v => updateStat(1, 'Git', v, 'git version '));
+  checkCmd('python','--version').then(v => updateStat(2, 'Python', v, 'Python '));
+  checkCmd('claude','--version').then(v => updateStat(3, 'Claude Code', v, ''));
 }
 
 async function checkCmd(cmd, args) {
@@ -365,12 +426,12 @@ async function checkCmd(cmd, args) {
   } catch(e) { return ''; }
 }
 
-function updateStat(idx, ver, prefix) {
+function updateStat(idx, name, ver, prefix) {
   const cards = document.getElementById('statCards').children;
   if (idx >= cards.length) return;
   const card = cards[idx]; const ok = ver !== '';
   card.className = 'stat-card ' + (ok ? 'ok' : 'no');
-  card.children[1].textContent = ok ? '已安装' : '未安装';
+  card.children[1].textContent = name + ': ' + (ok ? T('installed') : T('not_installed'));
   card.children[2].textContent = ok ? ver.replace(prefix,'').trim() : '—';
 }
 

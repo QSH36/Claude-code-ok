@@ -35,10 +35,11 @@ public partial class Form1 : Form
     {
         // Window setup
         Text = "Claude Code Installer v1.0.6 — Shimizu";
-        Size = new Size(860, 680);
+        Size = new Size(960, 740);
+        MinimumSize = new Size(800, 600);
         StartPosition = FormStartPosition.CenterScreen;
-        FormBorderStyle = FormBorderStyle.FixedDialog;
-        MaximizeBox = false;
+        FormBorderStyle = FormBorderStyle.Sizable;
+        MaximizeBox = true;
         BackColor = Color.FromArgb(0x1E, 0x1E, 0x2E);
 
         try
@@ -119,8 +120,10 @@ public partial class Form1 : Form
             }
             else if (path == "/api/check-cmd")
             {
-                var cmd = ctx.Request.QueryString["cmd"] ?? "";
-                var args = ctx.Request.QueryString["args"] ?? "";
+                // Parse query manually
+                var query = ctx.Request.Url!.Query;
+                var cmd = GetQueryParam(query, "cmd");
+                var args = GetQueryParam(query, "args");
                 try
                 {
                     var psi = new ProcessStartInfo(cmd, args) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true };
@@ -246,6 +249,19 @@ public partial class Form1 : Form
     static string EscapeJson(string s)
     {
         return s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
+    }
+
+    static string GetQueryParam(string query, string key)
+    {
+        if (string.IsNullOrEmpty(query)) return "";
+        query = query.TrimStart('?');
+        foreach (var pair in query.Split('&'))
+        {
+            var parts = pair.Split('=', 2);
+            if (parts.Length == 2 && parts[0] == key)
+                return Uri.UnescapeDataString(parts[1]);
+        }
+        return "";
     }
 
     string GetEmbeddedResource(string fileName)
