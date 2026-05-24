@@ -369,38 +369,3 @@ public partial class Form1 : Form
         base.Dispose(disposing);
     }
 }
-
-// Supporting types
-
-public class InstallSettings
-{
-    public string InstallPath { get; set; } = @"C:\ClaudeCode";
-    public bool CreateDesktopShortcut { get; set; } = true;
-    public bool AddToPath { get; set; } = true;
-    public string NodeVersion { get; set; } = "latest";
-    public string? ProxyUrl { get; set; }
-}
-
-public class InstallEngine
-{
-    readonly InstallSettings _settings;
-    readonly Action<string> _log;
-    readonly Action<int, int> _progress;
-
-    public InstallEngine(InstallSettings settings, Action<string> log, Action<int, int> progress)
-    {
-        _settings = settings;
-        _log = log;
-        _progress = progress;
-    }
-
-    public async Task DoInstallAsync()
-    {
-        _log("开始安装...");
-        _log($"安装路径: {_settings.InstallPath}");
-
-        await Task.Delay(1); // placeholder — replace with real install logic
-
-        _log("\n安装完成!");
-    }
-}

@@ -11,7 +11,7 @@ using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace ClaudeCodeInstallerV18;
+namespace ClaudeCodeInstallerV19;
 
 public class InstallSettings
 {
