@@ -880,6 +880,8 @@ function selectMode(isSimple) {
   state.isSimple = isSimple;
   document.getElementById('cardPro').classList.toggle('selected', !isSimple);
   document.getElementById('cardSimple').classList.toggle('selected', isSimple);
+  // Auto-advance: pro → page 1, simple → page 5
+  setTimeout(() => { if (isSimple) setPage(5); else setPage(1); }, 200);
 }
 
 // ============ PAGE 1: ENVIRONMENT DETECTION ============
