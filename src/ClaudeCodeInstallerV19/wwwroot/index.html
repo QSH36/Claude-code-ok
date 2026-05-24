@@ -526,7 +526,7 @@ function refreshPaths() {
   const fld = document.getElementById('custPathFields'); if (!fld) return;
   fld.innerHTML = TOOLS.map(t => {
     const td = S.toolDrives[t.id] || d;
-    return `<div style="display:flex;align-items:center;gap:8px"><span style="font-weight:600;font-size:11px;color:var(--text);width:110px">${t.name}</span><select onchange="S.toolDrives['${t.id}']=this.value;refreshPaths()" style="width:70px">${optDrive(td)}</select><span style="font-size:10px;color:var(--text2)">→ ${td}\\Claude Code tool\\${t.sub}</span></div>`;
+    return `<div style="display:flex;align-items:center;gap:8px"><span style="font-weight:600;font-size:11px;color:var(--text);width:110px">${t.name}</span><select data-tool="${t.id}" onchange="S.toolDrives['${t.id}']=this.value;refreshPaths()" style="width:70px">${optDrive(td)}</select><span style="font-size:10px;color:var(--text2)">→ ${td}\\Claude Code tool\\${t.sub}</span></div>`;
   }).join('');
 }
 
@@ -549,17 +549,25 @@ async function startInstall() {
   document.getElementById('termLog').textContent = '正在启动安装引擎...';
   document.getElementById('progFill').style.width = '0%';
 
-  // Build settings
+  // Build settings - read custom paths directly from DOM
   const d = S.drive;
-  const td = (id) => (S.showCustomPaths && S.toolDrives[id]) ? S.toolDrives[id] : d;
+  const toolIds = ['node','git','npm','cctools','python','tesseract'];
+  const toolDirs = ['NodeJS','Git','npm-global','cc-tools','Python312','Tesseract-OCR'];
+  const drives = {};
+  if (S.showCustomPaths) {
+    toolIds.forEach((id, i) => {
+      // Try reading from DOM dropdown first
+      const sel = document.querySelector(`#custPathFields select[data-tool="${id}"]`);
+      if (sel && sel.value) { drives[id] = sel.value; }
+      else if (S.toolDrives[id]) { drives[id] = S.toolDrives[id]; }
+      else { drives[id] = d; }
+    });
+  }
+  const td = (i) => (S.showCustomPaths ? drives[toolIds[i]] : d) + '\\Claude Code tool\\' + toolDirs[i];
   const settings = {
     IsSimple: S.simple, Drive: d,
-    NodePath: td('node')+'\\Claude Code tool\\NodeJS',
-    GitPath: td('git')+'\\Claude Code tool\\Git',
-    NpmPrefix: td('npm')+'\\Claude Code tool\\npm-global',
-    ToolsPath: td('cctools')+'\\Claude Code tool\\cc-tools',
-    PythonPath: td('python')+'\\Claude Code tool\\Python312',
-    TesseractPath: td('tesseract')+'\\Claude Code tool\\Tesseract-OCR',
+    NodePath: td(0), GitPath: td(1), NpmPrefix: td(2),
+    ToolsPath: td(3), PythonPath: td(4), TesseractPath: td(5),
     PipPath: d+'\\Python-packages',
     InstallTools: document.getElementById('chkTools')?.classList.contains('on') ?? true,
     InstallLogic: document.getElementById('chkLogic')?.classList.contains('on') ?? true,

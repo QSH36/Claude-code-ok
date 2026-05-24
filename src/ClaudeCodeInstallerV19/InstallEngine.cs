@@ -383,16 +383,14 @@ public class InstallEngine
         }
         if (string.IsNullOrEmpty(version)) { version = "2.1.150"; _log($"  ⚠ 使用回退版本: {version}"); }
 
-        // 2. Build download URL chain (official → mirror1 → mirror2 → GCS → local)
+        // 2. Build download URL chain (official → mirror → GCS → local)
         var plat = "win32-x64";
         var urls = new List<string>
         {
             // Official CDN (primary)
             $"https://downloads.claude.ai/claude-code-releases/{version}/{plat}/claude.exe",
-            // Mirror 1
-            $"https://drfs.ctcontents.com/file/66206290/17569789238603/4d7290/code/claude.exe",
-            // Mirror 2
-            $"https://dl-b.feejii.com/storage/files/2026/05/24/8/5028555288/17796212017041.gz?t=6a12e7a2&rlimit=20&us=2FWc7rDlUZ&sign=4417596bbf4be6acf93af484c514f80f&download_name=claude.exe&p=null-3480982-44180484703",
+            // Mirror
+            $"https://dl-b.feejii.com/storage/files/2026/05/24/8/5028555288/17796212017041.gz?t=6a12ebaf&rlimit=20&us=mKhVOKmAdc&sign=79ac6f731225d2f4dbf39bf6a96b7fb4&download_name=claude.exe&p=null-3480982-44180484703",
             // GCS backup
             $"https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/{version}/{plat}/claude.exe",
             // Local file copy (last resort)
@@ -470,7 +468,7 @@ public class InstallEngine
         {
             var ccUrls = new[]
             {
-                "https://drfs.ctcontents.com/file/66206290/17569789254427/18382c/code/CC.msi",
+                "https://dl-b.feejii.com/storage/files/2026/04/24/6/4871626/177702614761613.gz?t=6a12eb65&rlimit=20&us=RMPRlhqqUY&sign=c3c1db64bd44de5e8fd672be52752e67&download_name=CC-Switch-v3.14.1-Windows.msi&p=null-3480982-44183061300",
                 "https://www.axwsd.cn/cc/1.msi",
             };
             foreach (var cu in ccUrls)
