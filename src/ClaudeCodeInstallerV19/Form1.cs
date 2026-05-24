@@ -117,6 +117,32 @@ public partial class Form1 : Form
                 response.ContentLength64 = data.Length;
                 response.OutputStream.Write(data, 0, data.Length);
             }
+            else if (path == "/api/check-cmd")
+            {
+                var cmd = ctx.Request.QueryString["cmd"] ?? "";
+                var args = ctx.Request.QueryString["args"] ?? "";
+                try
+                {
+                    var psi = new ProcessStartInfo(cmd, args) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true };
+                    using var p = Process.Start(psi)!;
+                    var output = p.StandardOutput.ReadToEnd() + p.StandardError.ReadToEnd();
+                    p.WaitForExit(5000);
+                    var ok = p.ExitCode == 0 && !string.IsNullOrWhiteSpace(output);
+                    var json = JsonSerializer.Serialize(new { ok, ver = output.Trim() });
+                    var data = Encoding.UTF8.GetBytes(json);
+                    response.ContentType = "application/json; charset=utf-8";
+                    response.ContentLength64 = data.Length;
+                    response.OutputStream.Write(data, 0, data.Length);
+                }
+                catch
+                {
+                    var json = JsonSerializer.Serialize(new { ok = false, ver = "" });
+                    var data = Encoding.UTF8.GetBytes(json);
+                    response.ContentType = "application/json; charset=utf-8";
+                    response.ContentLength64 = data.Length;
+                    response.OutputStream.Write(data, 0, data.Length);
+                }
+            }
             else if (path == "/api/drives")
             {
                 // Return available drives

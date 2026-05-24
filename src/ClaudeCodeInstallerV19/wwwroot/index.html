@@ -5,1306 +5,575 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Claude Code Installer</title>
 <style>
-:root {
-  --brand: #0066FF;
-  --brand-end: #4DA3FF;
-  --green: #00B84D;
-  --orange: #FF6B35;
-  --card-bg: #FAFBFC;
-  --text-dark: #1A1A2E;
-  --text-gray: #6B7280;
-  --white: #FFFFFF;
-  --red: #EF4444;
-  --border: #E5E7EB;
-  --shadow: 0 4px 24px rgba(0,0,0,0.08);
-  --shadow-lg: 0 12px 40px rgba(0,0,0,0.12);
-  --radius: 16px;
-  --radius-sm: 10px;
-  --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
+:root { --brand:#0066FF; --brand-end:#4DA3FF; --green:#00B84D; --orange:#FF6B35; --purple:#8B5CF6; --red:#EF4444; --card-bg:#FAFBFC; --text:#1A1A2E; --text2:#6B7280; --border:#E5E7EB; --transition:cubic-bezier(.34,1.56,.64,1); }
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Microsoft YaHei UI',sans-serif;background:#F0F2F5;-webkit-app-region:no-drag;overflow:hidden;height:100vh}
+.bg-orbs{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.orb{position:absolute;border-radius:50%;filter:blur(100px);opacity:.35;animation:float 16s ease-in-out infinite}
+.orb:nth-child(1){width:500px;height:500px;background:#0066FF;top:-15%;left:-10%}
+.orb:nth-child(2){width:400px;height:400px;background:#8B5CF6;top:50%;right:-10%;animation-delay:-5s}
+.orb:nth-child(3){width:350px;height:350px;background:#00B84D;bottom:-15%;left:30%;animation-delay:-10s}
+@keyframes float{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(40px,-40px) scale(1.08)}66%{transform:translate(-30px,20px) scale(.94)}}
 
-* { margin:0; padding:0; box-sizing:border-box; }
+.app{position:relative;z-index:1;max-width:820px;margin:0 auto;height:100vh;display:flex;flex-direction:column;background:#fff;box-shadow:0 0 60px rgba(0,0,0,.08)}
+.titlebar{display:flex;align-items:center;gap:8px;padding:0 14px;height:36px;background:#1E1E2E;flex-shrink:0}
+.titlebar .dot{width:10px;height:10px;border-radius:50%}
+.titlebar .dot:nth-child(1){background:#FF5F57}.titlebar .dot:nth-child(2){background:#FFBD2E}.titlebar .dot:nth-child(3){background:#28CA41}
+.titlebar span{color:#ccc;font-size:11px;margin-left:12px;letter-spacing:.5px}
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Microsoft YaHei UI', 'PingFang SC', 'Segoe UI', sans-serif;
-  background: #F0F2F5;
-  color: var(--text-dark);
-  min-height: 100vh;
-  overflow-x: hidden;
-  -webkit-font-smoothing: antialiased;
-}
+.page-area{flex:1;overflow-y:auto;overflow-x:hidden}
+.page{display:none;min-height:100%;animation:pageIn .35s var(--transition)}
+.page.active{display:flex;flex-direction:column}
+@keyframes pageIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 
-/* ========== Floating Background Orbs ========== */
-.bg-orbs {
-  position: fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:0; overflow:hidden;
-}
-.orb {
-  position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.35;
-  animation: floatOrb 16s ease-in-out infinite;
-}
-.orb:nth-child(1) { width:320px; height:320px; background: radial-gradient(circle, #4DA3FF, #0066FF); top:-80px; left:-60px; animation-delay:0s; }
-.orb:nth-child(2) { width:280px; height:280px; background: radial-gradient(circle, #00B84D, #009440); top:40%; right:-60px; animation-delay:-5s; animation-duration:18s; }
-.orb:nth-child(3) { width:260px; height:260px; background: radial-gradient(circle, #FF6B35, #E05520); bottom:-80px; left:20%; animation-delay:-10s; animation-duration:20s; }
-.orb:nth-child(4) { width:200px; height:200px; background: radial-gradient(circle, #4DA3FF, #0066FF); top:60%; left:60%; animation-delay:-14s; animation-duration:14s; }
+.banner{background:linear-gradient(135deg,var(--brand),#3B82F6,var(--brand-end));text-align:center;position:relative;overflow:hidden;flex-shrink:0}
+.banner.welcome{padding:36px 32px}
+.banner.step{padding:14px 24px;display:flex;align-items:center;gap:10px}
+.banner::after{content:'';position:absolute;top:-50%;right:-20%;width:300px;height:300px;background:rgba(255,255,255,.04);border-radius:50%;animation:bannerGlow 8s ease-in-out infinite}
+@keyframes bannerGlow{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-30px,20px) scale(1.2)}}
+.banner .brand{font-size:10px;letter-spacing:6px;text-transform:uppercase;color:rgba(255,255,255,.45);margin-bottom:4px;position:relative;z-index:1}
+.banner h1{font-size:24px;font-weight:700;color:#fff;position:relative;z-index:1;letter-spacing:-.3px}
+.banner .sub{font-size:12px;color:rgba(255,255,255,.65);margin-top:4px;position:relative;z-index:1}
+.badge{width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.2);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0}
+.banner .st{color:#fff;font-weight:700;font-size:14px}
+.banner .step-info{color:rgba(255,255,255,.6);font-size:11px;margin-left:auto}
 
-@keyframes floatOrb {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  25% { transform: translate(40px, -30px) scale(1.08); }
-  50% { transform: translate(-20px, 20px) scale(0.95); }
-  75% { transform: translate(30px, 10px) scale(1.04); }
-}
+.ct{padding:20px 24px;flex:1}
 
-/* ========== Main Container ========== */
-.app-container {
-  position: relative; z-index:1;
-  max-width: 520px; margin: 0 auto; padding: 20px;
-  min-height: 100vh; display:flex; flex-direction:column;
-}
-.page { display:none; flex:1; animation: fadeSlideIn 0.4s ease; }
-.page.active { display:block; }
+.cards{display:flex;gap:14px;margin-top:16px}
+.card{cursor:pointer;border-radius:14px;padding:22px 18px;transition:all .3s var(--transition);position:relative;overflow:hidden;border:2px solid transparent}
+.card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.1)}
+.card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;border-radius:0 4px 4px 0}
+.card.pro{background:linear-gradient(135deg,#EEF2FF,#F5F8FF);border-color:#C4D9FF}.card.pro::before{background:var(--brand)}
+.card.pro:hover{border-color:var(--brand)}
+.card.simple{background:linear-gradient(135deg,#ECFDF5,#F5FFFA);border-color:#C6F6D5}.card.simple::before{background:var(--green)}
+.card.simple:hover{border-color:var(--green)}
+.card .wc-icon{font-size:26px;margin-bottom:6px}
+.card h3{font-size:15px;font-weight:700;margin-bottom:4px}.card.pro h3{color:var(--brand)}.card.simple h3{color:var(--green)}
+.card p{font-size:11px;color:var(--text2);line-height:1.5}
 
-@keyframes fadeSlideIn {
-  from { opacity:0; transform: translateY(16px); }
-  to { opacity:1; transform: translateY(0); }
-}
+.stat-cards{display:flex;flex-direction:column;gap:8px}
+.stat-card{display:flex;align-items:center;padding:12px 16px;border-radius:10px;background:var(--card-bg);border-left:3px solid var(--border)}
+.stat-card.ok{background:#f0fdf4;border-left-color:var(--green)}.stat-card.no{background:#fff7ed;border-left-color:var(--orange)}
+.stat-card .sdot{width:8px;height:8px;border-radius:50%;margin-right:10px}.stat-card.ok .sdot{background:var(--green)}.stat-card.no .sdot{background:var(--orange)}
+.stat-card .sn{font-weight:700;font-size:12px;color:var(--text)}
+.stat-card .sv{margin-left:auto;font-size:11px;color:var(--text2)}
 
-/* ========== Page 0 - Welcome ========== */
-.welcome-banner {
-  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-end) 100%);
-  border-radius: 24px; padding: 48px 32px; text-align: center; color: var(--white);
-  margin-bottom: 24px; position: relative; overflow: hidden;
-  box-shadow: 0 8px 32px rgba(0,102,255,0.25);
-}
-.welcome-banner::before {
-  content:''; position:absolute; top:-50%; right:-30%; width:200px; height:200px;
-  background: rgba(255,255,255,0.08); border-radius:50%;
-}
-.welcome-banner::after {
-  content:''; position:absolute; bottom:-40%; left:-20%; width:160px; height:160px;
-  background: rgba(255,255,255,0.06); border-radius:50%;
-}
-.welcome-banner .brand-label {
-  font-size: 13px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase;
-  opacity: 0.8; margin-bottom: 8px; position:relative; z-index:1;
-}
-.welcome-banner h1 {
-  font-size: 32px; font-weight: 700; margin-bottom: 6px; position:relative; z-index:1;
-}
-.welcome-banner .subtitle {
-  font-size: 15px; opacity: 0.9; margin-bottom: 4px; position:relative; z-index:1;
-}
-.welcome-banner .version {
-  font-size: 12px; opacity: 0.65; position:relative; z-index:1;
-}
+.flow-row{display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap}
+.flow-row span{font-size:12px;font-weight:600;color:var(--text)}
+.flow-row select{padding:6px 12px;border-radius:8px;border:1.5px solid #dde;font-size:12px;font-weight:600;color:var(--brand);background:#f0f4ff;outline:none;cursor:pointer}
+.btn-sm{padding:6px 14px;border-radius:8px;border:none;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s ease;background:#555;color:#fff}
+.btn-sm:hover{background:#333}
+.btn-sm.primary{background:var(--brand)}.btn-sm.primary:hover{background:#0052D9}
 
-.user-type-cards { display:flex; gap:12px; margin-bottom: 60px; }
-.user-card {
-  flex:1; background: var(--white); border-radius: var(--radius);
-  padding: 24px 16px; text-align: center; cursor: pointer;
-  box-shadow: var(--shadow); transition: var(--transition);
-  border: 2px solid transparent; position:relative; overflow:hidden;
-}
-.user-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); border-color: var(--brand); }
-.user-card.selected { border-color: var(--brand); background: #F0F5FF; }
-.user-card .card-icon {
-  width: 56px; height: 56px; border-radius: 50%; margin:0 auto 12px;
-  display:flex; align-items:center; justify-content:center; font-size:24px;
-}
-.user-card.pro .card-icon { background: linear-gradient(135deg, #0066FF, #4DA3FF); color:white; }
-.user-card.simple .card-icon { background: linear-gradient(135deg, #00B84D, #34D399); color:white; }
-.user-card .card-title { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
-.user-card .card-desc { font-size: 13px; color: var(--text-gray); line-height: 1.5; }
+.pill{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s ease;background:#EEF2FF;color:var(--brand);border:none;margin-bottom:12px}
+.pill:hover{background:#dde6ff}
 
-/* ========== Step Bar ========== */
-.step-bar { display:flex; align-items:center; gap:12px; margin-bottom: 20px; }
-.step-badge {
-  width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, var(--brand), var(--brand-end));
-  color: white; display:flex; align-items:center; justify-content:center;
-  font-weight: 700; font-size: 15px; flex-shrink:0;
-}
-.step-title { font-size: 20px; font-weight: 700; }
-.step-subtitle { margin-left: auto; font-size: 13px; color: var(--text-gray); font-weight: 500; }
+.skill-row{display:flex;align-items:center;padding:9px 12px;border-radius:10px;background:var(--card-bg);border-left:3px solid var(--brand);cursor:pointer;gap:10px;margin-bottom:4px;transition:all .2s ease}
+.skill-row:hover{background:#f0f4ff}.skill-row.off{border-left-color:#e5e7eb;background:#f8f8f9;opacity:.5;cursor:default}
+.skill-row .sk-chk{width:16px;height:16px;border-radius:3px;border:2px solid #ccc;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.skill-row.on .sk-chk{background:var(--brand);border-color:var(--brand)}
+.skill-row.on .sk-chk::after{content:'✓';color:#fff;font-size:10px;font-weight:700}
+.skill-row .sk-name{font-weight:700;font-size:12px;color:var(--text);width:120px;flex-shrink:0}
+.skill-row .sk-desc{font-size:10px;color:var(--text2)}
 
-/* ========== Cards & Sections ========== */
-.section-title { font-size: 15px; font-weight: 600; margin-bottom: 10px; color: var(--text-dark); }
+.chk-row{display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin-bottom:14px}
+.chk-row input[type=checkbox]{display:none}
+.chk-box{width:18px;height:18px;border-radius:4px;border:2px solid #ccc;flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;transition:all .2s ease}
+.chk-row.on .chk-box{background:var(--brand);border-color:var(--brand)}
+.chk-row.on .chk-box::after{content:'✓';color:#fff;font-size:10px;font-weight:700}
+.chk-label{font-weight:700;font-size:12px;color:var(--text)}.chk-desc{font-size:10px;color:var(--text2);margin-top:2px}
 
-/* Status Cards */
-.status-cards { display:flex; flex-wrap:wrap; gap:10px; margin-bottom: 16px; }
-.status-card {
-  flex: 1; min-width: calc(50% - 5px); background: var(--white); border-radius: var(--radius-sm);
-  padding: 14px 14px 14px 14px; box-shadow: var(--shadow); display:flex; align-items:center; gap:10px;
-  border-left: 4px solid var(--border);
-}
-.status-card .status-icon { font-size:22px; flex-shrink:0; }
-.status-card .status-info { flex:1; min-width:0; }
-.status-card .status-info .name { font-size:13px; font-weight:600; margin-bottom:2px; }
-.status-card .status-info .val { font-size:11px; color: var(--text-gray); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.opt-cards{display:flex;flex-direction:column;gap:8px}
+.opt-card{cursor:pointer;padding:14px 16px;border-radius:12px;background:var(--card-bg);border:2px solid transparent;transition:all .25s ease;display:flex;align-items:center;gap:10px}
+.opt-card:hover{background:#f0f4ff;border-color:#c4d9ff}
+.opt-card.sel{background:#EEF2FF;border-color:var(--brand)}
+.opt-card .o-dot{width:18px;height:18px;border-radius:50%;border:2px solid #ccc;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .3s ease}
+.opt-card.sel .o-dot{border-color:var(--brand);background:var(--brand)}.opt-card.sel .o-dot::after{content:'';width:7px;height:7px;border-radius:50%;background:#fff}
+.opt-card .o-title{font-weight:700;font-size:12px;color:var(--text)}.opt-card .o-desc{font-size:10px;color:var(--text2);margin-top:1px}
+.badge-tag{display:inline-block;padding:1px 7px;border-radius:8px;font-size:9px;font-weight:700;margin-left:6px}
+.badge-tag.warn{background:#FFF3E0;color:#E65100}.badge-tag.rec{background:#E8F5E9;color:#2E7D32}
 
-/* Drive Selector */
-.drive-select-wrap { margin-bottom: 16px; }
-.drive-select-wrap label { font-size:13px; font-weight:600; color: var(--text-gray); display:block; margin-bottom:6px; }
-.drive-selector {
-  width:100%; padding:12px 16px; border:2px solid var(--border); border-radius: var(--radius-sm);
-  font-size:15px; font-family:inherit; background: var(--white); color: var(--text-dark);
-  cursor:pointer; transition: var(--transition); appearance:none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236B7280' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
-  background-repeat:no-repeat; background-position:right 16px center; padding-right:40px;
-}
-.drive-selector:focus { outline:none; border-color: var(--brand); box-shadow:0 0 0 3px rgba(0,102,255,0.1); }
+.expand{overflow:hidden;max-height:0;opacity:0;transition:max-height .4s var(--transition),opacity .3s ease,margin .3s ease;margin-top:0}
+.expand.show{max-height:600px;opacity:1;margin-top:12px}
+.field-panel{background:var(--card-bg);border-radius:12px;padding:14px;border:1.5px solid #eef;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.field-panel label{font-size:10px;font-weight:600;color:var(--text);display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px}
+.field-panel .req{color:var(--red);margin-left:1px}
+.field-panel .opt-label{color:var(--text2);font-weight:400}.field-panel input,.field-panel textarea,.field-panel select{width:100%;padding:8px 12px;border-radius:8px;border:1.5px solid #dde;font-size:12px;font-family:inherit;outline:none;transition:all .2s ease}
+.field-panel input:focus,.field-panel textarea:focus,.field-panel select:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(0,102,255,.08)}
+.field-panel .fw{grid-column:1/-1}
+.field-panel textarea{resize:vertical;min-height:70px;font-family:Consolas,monospace;font-size:11px}
 
-/* Skill List */
-.skill-toolbar { display:flex; align-items:center; gap:8px; margin-bottom: 12px; }
-.pill-btn {
-  padding: 7px 18px; border-radius: 20px; border:1.5px solid var(--border); background: var(--white);
-  font-size:13px; font-weight:600; cursor:pointer; transition: var(--transition); font-family:inherit;
-  color: var(--text-dark);
-}
-.pill-btn:hover { border-color: var(--brand); color: var(--brand); }
-.pill-btn.active { background: var(--brand); color: white; border-color: var(--brand); }
-.btn-sm {
-  padding:8px 20px; border-radius: 20px; border:none; font-size:13px; font-weight:600; cursor:pointer;
-  transition: var(--transition); font-family:inherit; background: var(--white); color: var(--text-dark);
-  border:1.5px solid var(--border);
-}
-.btn-sm:hover { border-color: var(--brand); color: var(--brand); }
-.btn-sm.primary { background: var(--brand); color: white; border-color: var(--brand); }
-.btn-sm.primary:hover { background: #0052CC; }
+.path-list{font-size:11px;color:var(--text2);line-height:2;margin:12px 0}
+.path-list code{background:#eef2ff;color:var(--brand);padding:2px 6px;border-radius:4px;font-family:Consolas,monospace;font-size:10px;font-weight:600}
 
-.skill-row {
-  display:flex; align-items:center; padding:12px 14px; background: var(--white);
-  border-radius: var(--radius-sm); margin-bottom:6px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-  transition: var(--transition); gap:10px;
-}
-.skill-row:hover { box-shadow: var(--shadow); }
-.skill-row.disabled { opacity:0.45; pointer-events:none; }
-.skill-row .skill-check {
-  width:22px; height:22px; border-radius:6px; border:2px solid var(--border); flex-shrink:0;
-  display:flex; align-items:center; justify-content:center; cursor:pointer; transition: var(--transition);
-}
-.skill-row .skill-check.checked { background: var(--brand); border-color: var(--brand); }
-.skill-row .skill-check.checked::after { content:'\2713'; color:white; font-size:14px; font-weight:700; }
-.skill-row .skill-name { flex:1; font-size:14px; font-weight:500; }
-.skill-row .skill-tag {
-  font-size:11px; padding:3px 10px; border-radius:12px; font-weight:600;
-  background: #F0F5FF; color: var(--brand);
-}
-.skill-row.disabled .skill-tag { background: #F3F4F6; color: #9CA3AF; }
+.install-btn{width:100%;padding:14px;border-radius:12px;background:linear-gradient(135deg,var(--green),#00D166);color:#fff;font-size:15px;font-weight:700;border:none;cursor:pointer;position:relative;overflow:hidden;transition:all .3s ease}
+.install-btn:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,184,77,.3)}
+.install-btn:disabled{opacity:.5;cursor:default}
+.install-btn::after{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:linear-gradient(45deg,transparent 40%,rgba(255,255,255,.1) 50%,transparent 60%);animation:shimmer 3s infinite}
+@keyframes shimmer{0%{transform:translateX(-100%) rotate(45deg)}100%{transform:translateX(100%) rotate(45deg)}}
 
-/* Checkbox Row */
-.checkbox-row {
-  display:flex; align-items:center; padding:12px 14px; background: var(--white);
-  border-radius: var(--radius-sm); margin-bottom:8px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-  gap:10px; cursor:pointer; transition: var(--transition);
-}
-.checkbox-row:hover { box-shadow: var(--shadow); }
-.checkbox-row .cb {
-  width:22px; height:22px; border-radius:6px; border:2px solid var(--border); flex-shrink:0;
-  display:flex; align-items:center; justify-content:center; transition: var(--transition);
-}
-.checkbox-row .cb.checked { background: var(--brand); border-color: var(--brand); }
-.checkbox-row .cb.checked::after { content:'\2713'; color:white; font-size:14px; font-weight:700; }
-.checkbox-row .cb-label { flex:1; font-size:14px; font-weight:500; }
-.checkbox-row .cb-desc { font-size:12px; color: var(--text-gray); margin-top:2px; }
+.progress-wrap{margin:12px 0}.progress-bar{height:6px;border-radius:6px;background:#e5e7eb;overflow:hidden}
+.progress-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--brand),var(--brand-end));transition:width .4s ease;width:0%}
 
-/* Expandable textarea */
-.expand-section { margin-top:8px; display:none; }
-.expand-section.open { display:block; animation: fadeSlideIn 0.3s ease; }
-.expand-section textarea {
-  width:100%; height:120px; border:2px solid var(--border); border-radius: var(--radius-sm);
-  padding:12px 14px; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', 'SF Mono', monospace;
-  font-size:13px; resize:vertical; background: var(--white); color: var(--text-dark);
-  transition: var(--transition);
-}
-.expand-section textarea:focus { outline:none; border-color: var(--brand); }
+.terminal{margin-top:12px;background:#1A1B26;border-radius:12px;padding:14px 18px;font-family:Consolas,monospace;font-size:10.5px;color:#a9b1d6;line-height:1.7;min-height:280px;max-height:340px;overflow-y:auto;white-space:pre-wrap;word-break:break-all}
 
-/* Option Cards */
-.option-cards { display:flex; gap:12px; margin-bottom:16px; }
-.option-card {
-  flex:1; background: var(--white); border-radius: var(--radius-sm); padding:20px 14px;
-  text-align:center; cursor:pointer; border:2px solid var(--border); transition: var(--transition);
-  position:relative;
-}
-.option-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
-.option-card.selected { border-color: var(--brand); background: #F0F5FF; }
-.option-card .option-icon { font-size:28px; margin-bottom:8px; }
-.option-card .option-title { font-size:15px; font-weight:700; margin-bottom:3px; }
-.option-card .option-desc { font-size:12px; color: var(--text-gray); }
-.option-badge {
-  position:absolute; top:-8px; right:-8px; padding:3px 10px; border-radius:12px;
-  font-size:11px; font-weight:700; color:white;
-}
-.option-badge.recommend { background: var(--green); }
-.option-badge.not-recommend { background: #F59E0B; }
+.navbar{display:flex;gap:10px;padding:14px 24px;background:linear-gradient(180deg,#1E1E2E,#16162A);flex-shrink:0}
+.navbar button{padding:9px 20px;border-radius:8px;font-weight:700;font-size:12px;border:none;cursor:pointer;transition:all .2s ease}
+.btn-back{background:rgba(255,255,255,.1);color:#ccc}.btn-back:hover{background:rgba(255,255,255,.18)}
+.btn-next{background:var(--brand);color:#fff}.btn-next:hover{background:#0052D9}
 
-/* API expand forms */
-.api-expand {
-  margin-top:12px; padding:0; display:none;
-}
-.api-expand.open { display:block; animation: fadeSlideIn 0.3s ease; }
-.api-expand .form-group { margin-bottom:12px; }
-.api-expand .form-group label {
-  display:block; font-size:12px; font-weight:700; color: var(--text-gray);
-  margin-bottom:4px; text-transform:uppercase; letter-spacing:0.5px;
-}
-.api-expand .form-group input {
-  width:100%; padding:10px 14px; border:2px solid var(--border); border-radius: var(--radius-sm);
-  font-size:14px; font-family:inherit; transition: var(--transition); background: var(--white); color: var(--text-dark);
-}
-.api-expand .form-group input:focus { outline:none; border-color: var(--brand); box-shadow:0 0 0 3px rgba(0,102,255,0.08); }
-.api-expand .form-row { display:flex; gap:8px; }
-.api-expand .form-row .form-group { flex:1; }
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:1000;background:#FEF2F2;color:#991B1B;border:1px solid #FECACA;border-radius:10px;padding:12px 24px;font-size:13px;font-weight:600;animation:toastIn .3s var(--transition);box-shadow:0 8px 24px rgba(239,68,68,.15)}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-16px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 
-/* ========== Install Page ========== */
-.install-trigger { text-align:center; margin-bottom: 20px; }
-.btn-install {
-  padding:16px 48px; border-radius: 28px; border:none;
-  background: linear-gradient(135deg, var(--green), #34D399);
-  color: white; font-size: 17px; font-weight: 700; cursor: pointer; font-family:inherit;
-  transition: var(--transition); position:relative; overflow:hidden;
-  box-shadow: 0 6px 24px rgba(0,184,77,0.3);
-}
-.btn-install:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,184,77,0.4); }
-.btn-install:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
-.btn-install::after {
-  content:''; position:absolute; top:0; left:-100%; width:100%; height:100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-  animation: shimmer 2s infinite;
-}
-.btn-install:disabled::after { display:none; }
-
-@keyframes shimmer {
-  0% { left:-100%; }
-  100% { left:100%; }
-}
-
-/* Progress bar */
-.progress-wrap { margin-bottom: 16px; }
-.progress-label { display:flex; justify-content:space-between; font-size:12px; color: var(--text-gray); margin-bottom:6px; }
-.progress-bar {
-  width:100%; height:8px; background: #E5E7EB; border-radius:4px; overflow:hidden;
-}
-.progress-fill {
-  height:100%; background: linear-gradient(90deg, var(--brand), var(--brand-end));
-  border-radius:4px; transition: width 0.3s ease; position:relative;
-}
-.progress-fill::after {
-  content:''; position:absolute; top:0; left:-100%; width:100%; height:100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-  animation: shimmer 1.5s infinite;
-}
-
-/* Terminal Log */
-.terminal {
-  background: #1A1B26; border-radius: var(--radius-sm); padding:16px;
-  max-height:340px; overflow-y:auto; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', 'SF Mono', monospace;
-  font-size:13px; line-height:1.7; color: #A9B1D6; margin-bottom: 60px;
-}
-.terminal .log-line { white-space:pre-wrap; word-break:break-all; }
-.terminal .log-line.error { color: #F7768E; }
-.terminal .log-line.warn { color: #E0AF68; }
-.terminal .log-line.success { color: #9ECE6A; }
-
-/* Path Preview */
-.path-preview {
-  background: #F0F5FF; border-radius: var(--radius-sm); padding:10px 14px;
-  font-size:13px; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', 'SF Mono', monospace;
-  color: var(--brand); margin-top:6px; word-break:break-all;
-}
-
-/* ========== Bottom Navigation ========== */
-.nav-bar {
-  position:fixed; bottom:0; left:0; right:0; background: rgba(26,26,46,0.92);
-  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-  padding: 12px 20px; display:flex; gap:12px; justify-content:center;
-  z-index:100; box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
-}
-.nav-bar .nav-btn {
-  padding: 12px 36px; border-radius: 24px; border:none; font-size: 15px; font-weight: 700;
-  cursor:pointer; transition: var(--transition); font-family:inherit;
-}
-.nav-btn.back { background: rgba(255,255,255,0.12); color: white; }
-.nav-btn.back:hover { background: rgba(255,255,255,0.2); }
-.nav-btn.next {
-  background: linear-gradient(135deg, var(--brand), var(--brand-end));
-  color: white; box-shadow: 0 4px 16px rgba(0,102,255,0.3);
-}
-.nav-btn.next:hover { box-shadow: 0 6px 24px rgba(0,102,255,0.45); transform: translateY(-1px); }
-.nav-btn.next:disabled { opacity:0.4; cursor:not-allowed; transform:none; }
-
-.bottom-spacer { height:80px; }
-
-/* ========== Toast ========== */
-.toast {
-  position:fixed; top:-100px; left:50%; transform:translateX(-50%);
-  background: var(--red); color:white; padding:12px 28px; border-radius:24px;
-  font-size:14px; font-weight:600; z-index:200; transition: top 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  box-shadow: 0 8px 24px rgba(239,68,68,0.3);
-}
-.toast.show { top:24px; }
-
-/* ========== Modal Overlay ========== */
-.modal-overlay {
-  position:fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.55);
-  backdrop-filter: blur(6px); z-index:300; display:flex; align-items:center; justify-content:center;
-  animation: fadeIn 0.3s ease;
-}
-@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
-.modal {
-  background: var(--white); border-radius: 24px; padding:32px 28px; max-width:440px; width:90%;
-  text-align:center; max-height:80vh; overflow-y:auto; box-shadow: 0 20px 60px rgba(0,0,0,0.25);
-  animation: modalPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-@keyframes modalPop {
-  from { opacity:0; transform: scale(0.9) translateY(20px); }
-  to { opacity:1; transform: scale(1) translateY(0); }
-}
-.modal .check-circle {
-  width:72px; height:72px; border-radius:50%; background: linear-gradient(135deg, var(--green), #34D399);
-  margin:0 auto 16px; display:flex; align-items:center; justify-content:center;
-  box-shadow: 0 8px 24px rgba(0,184,77,0.3);
-}
-.modal .check-circle::after { content:'\2713'; color:white; font-size:36px; font-weight:700; }
-.modal h2 { font-size:24px; font-weight:700; margin-bottom:16px; }
-.modal .installed-section { text-align:left; margin-bottom:16px; }
-.modal .installed-section h3 { font-size:14px; font-weight:700; color: var(--text-gray); margin-bottom:6px; text-transform:uppercase; letter-spacing:1px; }
-.modal .installed-item { padding:6px 0; font-size:13px; display:flex; gap:8px; border-bottom:1px solid #F3F4F6; }
-.modal .installed-item .item-name { font-weight:600; white-space:nowrap; }
-.modal .installed-item .item-arrow { color: var(--brand); font-weight:600; }
-.modal .installed-item .item-path { color: var(--text-gray); word-break:break-all; }
-.modal .btn-finish {
-  width:100%; padding:14px; border-radius:24px; border:none;
-  background: linear-gradient(135deg, var(--brand), var(--brand-end));
-  color: white; font-size:16px; font-weight:700; cursor:pointer; margin-top:8px;
-  transition: var(--transition); font-family:inherit;
-  box-shadow: 0 4px 16px rgba(0,102,255,0.3);
-}
-.modal .btn-finish:hover { box-shadow: 0 6px 24px rgba(0,102,255,0.45); transform: translateY(-1px); }
-
-/* ========== Misc ========== */
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-.spinner {
-  display:inline-block; width:16px; height:16px; border:2px solid rgba(255,255,255,0.3);
-  border-top-color:white; border-radius:50%; animation: spin 0.7s linear infinite;
-  vertical-align:middle; margin-right:6px;
-}
-
-.custom-divider {
-  width: 24px; height: 2px; background: var(--text-gray); opacity: 0.3;
-  margin: 0 auto 8px; border-radius: 1px;
-}
-
-.tool-path-preview {
-  font-size: 11px; color: var(--text-gray); margin-left: auto; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', 'SF Mono', monospace;
-}
-
-.hidden { display:none !important; }
-
-/* Scrollbar */
-::-webkit-scrollbar { width:6px; }
-::-webkit-scrollbar-track { background:transparent; }
-::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius:3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.25); }
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:500;display:flex;align-items:center;justify-content:center;animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal-box{background:#fff;border-radius:16px;padding:28px;max-width:480px;width:90%;box-shadow:0 24px 60px rgba(0,0,0,.2);animation:modalPop .4s var(--transition);max-height:80vh;overflow-y:auto}
+@keyframes modalPop{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
+.modal-box h2{font-size:18px;font-weight:700;color:var(--green);margin-bottom:4px}
+.modal-box .mo-sub{font-size:12px;color:var(--text2);margin-bottom:14px}
+.modal-box .mo-list{font-size:11px;color:var(--text);line-height:2}
+.modal-box .mo-list .cat{font-weight:700;color:var(--brand);margin-top:8px;display:block}
+.modal-box .mo-list code{background:#f0f4ff;padding:1px 6px;border-radius:4px;font-size:10px;color:var(--brand)}
+.modal-box .mo-btn{margin-top:16px;width:100%;padding:11px;border-radius:10px;background:var(--brand);color:#fff;font-weight:700;font-size:13px;border:none;cursor:pointer}
 </style>
 </head>
 <body>
-
-<div class="bg-orbs">
-  <div class="orb"></div>
-  <div class="orb"></div>
-  <div class="orb"></div>
-  <div class="orb"></div>
+<div class="bg-orbs"><div class="orb"></div><div class="orb"></div><div class="orb"></div></div>
+<div class="app" id="app">
+<div class="titlebar"><div class="dot"></div><div class="dot"></div><div class="dot"></div><span>Claude Code Installer v1.0.6 — Shimizu</span></div>
+<div class="page-area" id="pageArea"></div>
+<div class="navbar" id="navBar" style="display:none"><button class="btn-back" onclick="goBack()">← 上一步</button><button class="btn-next" id="btnNext" onclick="goNext()">下一步 →</button></div>
 </div>
-
-<div class="app-container" id="app">
-
-  <!-- ====== Page 0: Welcome ====== -->
-  <div class="page active" id="page0">
-    <div class="welcome-banner">
-      <div class="brand-label">SHIMIZU</div>
-      <h1>Claude Code</h1>
-      <div class="subtitle">AI 编程助手一键安装</div>
-      <div class="version">v1.0.6</div>
-    </div>
-    <div class="section-title" style="text-align:center;margin-bottom:12px;">选择安装模式</div>
-    <div class="user-type-cards">
-      <div class="user-card pro selected" id="cardPro" onclick="selectMode(false)">
-        <div class="card-icon pro">&#9881;</div>
-        <div class="card-title">专业用户</div>
-        <div class="card-desc">完整配置<br>自定义 Skills、工具路径、API</div>
-      </div>
-      <div class="user-card simple" id="cardSimple" onclick="selectMode(true)">
-        <div class="card-icon simple">&#9733;</div>
-        <div class="card-title">简单用户</div>
-        <div class="card-desc">快速安装<br>推荐配置，一键完成</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ====== Page 1: Environment Detection ====== -->
-  <div class="page" id="page1">
-    <div class="step-bar">
-      <div class="step-badge">1</div>
-      <div class="step-title">环境检测</div>
-    </div>
-    <div class="drive-select-wrap">
-      <label>安装驱动器</label>
-      <select class="drive-selector" id="envDrive" onchange="onEnvDriveChange()"></select>
-    </div>
-    <div class="section-title">系统状态</div>
-    <div class="status-cards">
-      <div class="status-card" style="border-left-color:var(--green);">
-        <div class="status-icon">&#9989;</div>
-        <div class="status-info"><div class="name">操作系统</div><div class="val" id="statOS">Windows 11 Pro</div></div>
-      </div>
-      <div class="status-card" style="border-left-color:var(--green);">
-        <div class="status-icon">&#128640;</div>
-        <div class="status-info"><div class="name">可用磁盘空间</div><div class="val" id="statSpace">--</div></div>
-      </div>
-      <div class="status-card" style="border-left-color:var(--orange);">
-        <div class="status-icon">&#9888;</div>
-        <div class="status-info"><div class="name">Node.js</div><div class="val" id="statNode">检测中...</div></div>
-      </div>
-      <div class="status-card" style="border-left-color:var(--orange);">
-        <div class="status-icon">&#9888;</div>
-        <div class="status-info"><div class="name">Git</div><div class="val" id="statGit">检测中...</div></div>
-      </div>
-    </div>
-    <button class="btn-sm primary" onclick="detectEnv()" style="width:100%;">&#8635; 重新检测</button>
-    <div class="bottom-spacer"></div>
-  </div>
-
-  <!-- ====== Page 2: Skills ====== -->
-  <div class="page" id="page2">
-    <div class="step-bar">
-      <div class="step-badge">2</div>
-      <div class="step-title">Skills 选择</div>
-    </div>
-    <div class="skill-toolbar">
-      <button class="pill-btn active" id="pillSelectAll" onclick="toggleSelectAll()">全选 / 取消全选</button>
-      <span style="font-size:12px;color:var(--text-gray);">已选 <span id="skillCount">0</span> 项</span>
-    </div>
-    <div id="skillList"></div>
-    <div class="bottom-spacer"></div>
-  </div>
-
-  <!-- ====== Page 3: Tools & Logic ====== -->
-  <div class="page" id="page3">
-    <div class="step-bar">
-      <div class="step-badge">3</div>
-      <div class="step-title">工具与逻辑</div>
-    </div>
-    <div class="checkbox-row" onclick="toggleCheck('installTools')">
-      <div class="cb checked" id="cb_installTools"></div>
-      <div><div class="cb-label">安装截图工具</div><div class="cb-desc">Nircmd, Tesseract OCR</div></div>
-    </div>
-    <div class="checkbox-row" onclick="toggleCheck('installLogic')">
-      <div class="cb checked" id="cb_installLogic"></div>
-      <div><div class="cb-label">安装截图逻辑</div><div class="cb-desc">预配置 PowerShell + Python 截图脚本</div></div>
-    </div>
-    <div class="checkbox-row" onclick="toggleCheckExpand('installCustomLogic')">
-      <div class="cb" id="cb_installCustomLogic"></div>
-      <div><div class="cb-label">自定义 CLAUDE.md 逻辑</div><div class="cb-desc">写入自定义指令到 CLAUDE.md</div></div>
-    </div>
-    <div class="expand-section" id="expandCustomLogic">
-      <textarea placeholder="在此输入自定义 CLAUDE.md 逻辑...&#10;&#10;例如：&#10;# 自定义规则&#10;- 始终使用 TypeScript&#10;- 遵循公司代码规范"></textarea>
-    </div>
-    <div class="bottom-spacer"></div>
-  </div>
-
-  <!-- ====== Page 4: Security ====== -->
-  <div class="page" id="page4">
-    <div class="step-bar">
-      <div class="step-badge">4</div>
-      <div class="step-title">安全模式</div>
-    </div>
-    <div class="option-cards">
-      <div class="option-card" id="optSafe" onclick="selectSecurity('safe')">
-        <div class="option-icon">&#128274;</div>
-        <div class="option-title">安全模式</div>
-        <div class="option-desc">需要每次确认权限操作</div>
-      </div>
-      <div class="option-card selected" id="optPro" onclick="selectSecurity('pro')">
-        <span class="option-badge recommend">推荐</span>
-        <div class="option-icon">&#128275;</div>
-        <div class="option-title">专业模式</div>
-        <div class="option-desc">绕过权限确认（推荐）</div>
-      </div>
-    </div>
-    <div style="font-size:12px;color:var(--text-gray);padding:0 4px;line-height:1.6;">
-      专业模式将自动批准所有工具调用，适合有经验的开发者。安全模式在每次执行敏感操作前需要手动确认。
-    </div>
-    <div class="bottom-spacer"></div>
-  </div>
-
-  <!-- ====== Page 5: API Config ====== -->
-  <div class="page" id="page5">
-    <div class="step-bar">
-      <div class="step-badge" id="apiStepBadge">5</div>
-      <div class="step-title">API 配置</div>
-      <div class="step-subtitle" id="apiStepSub">第1步/共3步</div>
-    </div>
-    <div class="section-title">选择 API 提供商</div>
-    <div style="display:flex;flex-direction:column;gap:8px;" id="apiOptions">
-      <div class="option-card selected" id="optAnthropic" onclick="selectApiProvider('anthropic')" style="text-align:left;display:flex;align-items:center;gap:12px;padding:14px 16px;">
-        <span class="option-badge not-recommend" style="position:static;">不推荐</span>
-        <div style="flex:1;"><div class="option-title" style="font-size:14px;">Anthropic (Claude)</div><div class="option-desc">官方 API，需海外支付</div></div>
-      </div>
-      <div class="option-card" id="optDeepSeek" onclick="selectApiProvider('deepseek')" style="text-align:left;display:flex;align-items:center;gap:12px;padding:14px 16px;">
-        <span class="option-badge recommend" style="position:static;">推荐</span>
-        <div style="flex:1;"><div class="option-title" style="font-size:14px;">DeepSeek</div><div class="option-desc">国内可直接使用，性价比高</div></div>
-      </div>
-      <div class="option-card" id="optCustom" onclick="selectApiProvider('custom')" style="text-align:left;display:flex;align-items:center;gap:12px;padding:14px 16px;">
-        <div class="option-icon" style="font-size:20px;margin:0;">&#9881;</div>
-        <div style="flex:1;"><div class="option-title" style="font-size:14px;">自定义模型</div><div class="option-desc">兼容 OpenAI 接口的第三方模型</div></div>
-      </div>
-    </div>
-
-    <!-- Anthropic expand -->
-    <div class="api-expand" id="expandAnthropic">
-      <div class="form-group"><label>API Key</label><input type="password" id="anthropicKey" placeholder="sk-ant-api03-..."></div>
-    </div>
-    <!-- DeepSeek expand -->
-    <div class="api-expand open" id="expandDeepSeek">
-      <div class="form-group"><label>API Key</label><input type="password" id="deepseekKey" placeholder="sk-..."></div>
-    </div>
-    <!-- Custom expand -->
-    <div class="api-expand" id="expandCustom">
-      <div class="form-group"><label>API Key</label><input type="password" id="customKey" placeholder="sk-..."></div>
-      <div class="form-group"><label>Base URL</label><input type="text" id="customBaseUrl" placeholder="https://api.example.com/v1" onblur="autoPrependHttps(this)"></div>
-      <div class="form-row">
-        <div class="form-group"><label>Main Model</label><input type="text" id="customMainModel" placeholder="gpt-4o"></div>
-        <div class="form-group"><label>Haiku Model</label><input type="text" id="customHaikuModel" placeholder="gpt-4o-mini"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Sonnet Model</label><input type="text" id="customSonnetModel" placeholder="claude-sonnet-4-20250514"></div>
-        <div class="form-group"><label>Opus Model</label><input type="text" id="customOpusModel" placeholder="claude-opus-4-20250514"></div>
-      </div>
-      <div class="form-group"><label>Subagent Model (可选)</label><input type="text" id="customSubagentModel" placeholder="留空则使用 Main Model"></div>
-    </div>
-    <div class="bottom-spacer"></div>
-  </div>
-
-  <!-- ====== Page 6: Install Config ====== -->
-  <div class="page" id="page6">
-    <div class="step-bar">
-      <div class="step-badge" id="cfgStepBadge">6</div>
-      <div class="step-title">安装配置</div>
-      <div class="step-subtitle" id="cfgStepSub">第2步/共3步</div>
-    </div>
-    <div class="drive-select-wrap">
-      <label>默认安装驱动器</label>
-      <select class="drive-selector" id="cfgDrive" onchange="updatePathPreviews()"></select>
-    </div>
-    <div class="section-title">安装路径预览</div>
-    <div class="path-preview" id="pathPreviewNode">--</div>
-    <div class="path-preview" id="pathPreviewGit" style="margin-top:4px;">--</div>
-    <div class="path-preview" id="pathPreviewNpm" style="margin-top:4px;">--</div>
-    <div class="path-preview" id="pathPreviewTools" style="margin-top:4px;">--</div>
-    <div class="path-preview" id="pathPreviewPython" style="margin-top:4px;">--</div>
-    <div class="path-preview" id="pathPreviewTesseract" style="margin-top:4px;">--</div>
-    <div class="path-preview" id="pathPreviewPip" style="margin-top:4px;">--</div>
-    <div style="margin-top:16px;">
-      <div class="checkbox-row" onclick="toggleCheckExpand('customPaths')">
-        <div class="cb" id="cb_customPaths"></div>
-        <div><div class="cb-label">工具自定义安装位置</div><div class="cb-desc">分别为每个工具选择驱动器</div></div>
-      </div>
-      <div class="expand-section" id="expandCustomPaths">
-        <div class="form-group" style="margin-bottom:8px;"><label>Node.js 驱动器</label><select class="drive-selector" id="driveNode" onchange="updatePathPreviews()"></select></div>
-        <div class="form-group" style="margin-bottom:8px;"><label>Git 驱动器</label><select class="drive-selector" id="driveGit" onchange="updatePathPreviews()"></select></div>
-        <div class="form-group" style="margin-bottom:8px;"><label>npm-global 驱动器</label><select class="drive-selector" id="driveNpm" onchange="updatePathPreviews()"></select></div>
-        <div class="form-group" style="margin-bottom:8px;"><label>cc-tools 驱动器</label><select class="drive-selector" id="driveTools" onchange="updatePathPreviews()"></select></div>
-        <div class="form-group" style="margin-bottom:8px;"><label>Python 驱动器</label><select class="drive-selector" id="drivePython" onchange="updatePathPreviews()"></select></div>
-        <div class="form-group" style="margin-bottom:8px;"><label>Tesseract 驱动器</label><select class="drive-selector" id="driveTesseract" onchange="updatePathPreviews()"></select></div>
-        <div class="form-group" style="margin-bottom:8px;"><label>Pip-packages 驱动器</label><select class="drive-selector" id="drivePip" onchange="updatePathPreviews()"></select></div>
-      </div>
-    </div>
-    <div class="bottom-spacer"></div>
-  </div>
-
-  <!-- ====== Page 7: Install ====== -->
-  <div class="page" id="page7">
-    <div class="step-bar">
-      <div class="step-badge" id="instStepBadge">7</div>
-      <div class="step-title">安装</div>
-      <div class="step-subtitle" id="instStepSub">第3步/共3步</div>
-    </div>
-    <div class="install-trigger">
-      <button class="btn-install" id="btnStartInstall" onclick="startInstall()">
-        <span id="btnInstallText">&#9889; 开始安装</span>
-      </button>
-    </div>
-    <div class="progress-wrap" id="progressWrap" style="display:none;">
-      <div class="progress-label">
-        <span id="progressLabel">准备中...</span>
-        <span id="progressPercent">0 / 0</span>
-      </div>
-      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%;"></div></div>
-    </div>
-    <div class="terminal" id="terminal"><div class="log-line">等待开始安装...</div></div>
-    <div class="bottom-spacer"></div>
-  </div>
-
-</div>
-
-<!-- Toast -->
-<div class="toast" id="toast"></div>
-
-<!-- Completion Modal -->
-<div class="modal-overlay" id="modalOverlay" style="display:none;">
-  <div class="modal">
-    <div class="check-circle"></div>
-    <h2>安装完成!</h2>
-    <div id="modalContent"></div>
-    <button class="btn-finish" onclick="finishInstall()">完成</button>
-  </div>
-</div>
-
-<!-- Bottom Nav Bar -->
-<div class="nav-bar" id="navBar" style="display:none;">
-  <button class="nav-btn back" id="btnBack" onclick="goBack()">&#8592; 上一步</button>
-  <button class="nav-btn next" id="btnNext" onclick="goNext()">下一步 &#8594;</button>
-</div>
+<div id="toastContainer"></div>
+<div id="modalContainer"></div>
 
 <script>
-// ============ STATE ============
-const state = {
-  isSimple: false,
-  currentPage: 0,
-  drives: [],
-  // Page 2
-  skills: [],
-  allSkillsSelected: true,
-  // Page 3
-  installTools: true,
-  installLogic: true,
-  installCustomLogic: false,
-  customLogicContent: '',
-  // Page 4
-  bypassPermissions: true,
-  // Page 5
-  apiProvider: 'deepseek',
-  apiKey: '',
-  apiBaseUrl: '',
-  customMainModel: '',
-  customHaikuModel: '',
-  customSonnetModel: '',
-  customOpusModel: '',
-  customSubagentModel: '',
-  // Page 6
-  defaultDrive: 'C:',
-  customPaths: false,
-  driveNode: 'C:',
-  driveGit: 'C:',
-  driveNpm: 'C:',
-  driveTools: 'C:',
-  drivePython: 'C:',
-  driveTesseract: 'C:',
-  drivePip: 'C:',
-  // Install
-  installing: false,
-  pollTimer: null,
+// ═══ STATE ═══
+const S = {
+  simple: false, page: 0, drive: 'C:', drives: ['C:','D:'], api: 'deepseek',
+  showCustomLogic: false, showCustomPaths: false,
+  toolDrives: {}, skills: [], maxThinking: true, noUpdate: false,
+  installing: false, installDone: false, timer: null,
+  port: window.location.port || '5000'
 };
+const BASE = () => `http://localhost:${S.port}`;
 
-// Skill definitions
 const SKILLS = [
-  { id:'Superpowers', name:'Superpowers', tag:'系统', disabled:false },
-  { id:'Find Skills', name:'Find Skills', tag:'搜索', disabled:false },
-  { id:'Brainstorming', name:'Brainstorming', tag:'创意', disabled:false },
-  { id:'Executing Plans', name:'Executing Plans', tag:'执行', disabled:false },
-  { id:'Subagent Driven Dev', name:'Subagent Driven Dev', tag:'开发', disabled:false },
-  { id:'Test Driven Dev', name:'Test Driven Dev', tag:'测试', disabled:false },
-  { id:'Writing Plans', name:'Writing Plans', tag:'规划', disabled:false },
-  { id:'Requesting Code Review', name:'Requesting Code Review', tag:'审查', disabled:false },
-  { id:'Receiving Code Review', name:'Receiving Code Review', tag:'审查', disabled:false },
-  { id:'Using Git Worktrees', name:'Using Git Worktrees', tag:'Git', disabled:false },
-  { id:'Code Review', name:'Code Review', tag:'审查', disabled:true },
-  { id:'Security Audit', name:'Security Audit', tag:'安全', disabled:true },
-  { id:'Test Generator', name:'Test Generator', tag:'测试', disabled:true },
+  'obra/superpowers','vercel-labs/skills@find-skills','document-skills@anthropic-agent-skills',
+  'obra/frontend-design','skill-creator@claude-plugins-official','JuliusBrussee/caveman',
+  'yize/web-access','claude-mem@thedotmack','pua@claude-code-plugins','excalidraw-diagram@claude-plugins-official'
+];
+const SKILL_NAMES = ['Superpowers','Find Skills','Document Skills','Frontend Design','Skill Creator','Caveman','Web Access','Claude-mem','PUA Skill','Excalidraw'];
+const TOOLS = [
+  {id:'node',name:'Node.js',sub:'NodeJS',ver:'v20.18.0'},
+  {id:'git',name:'Git',sub:'Git',ver:'2.45.2'},
+  {id:'npm',name:'npm global',sub:'npm-global',ver:''},
+  {id:'cctools',name:'Claude Code',sub:'cc-tools',ver:''},
+  {id:'python',name:'Python',sub:'Python312',ver:'3.12.4'},
+  {id:'tesseract',name:'Tesseract OCR',sub:'Tesseract-OCR',ver:'5.3.3'}
 ];
 
-// ============ INIT ============
-function init() {
-  const port = window.location.port || '5000';
-  window.API_BASE = `http://localhost:${port}`;
-
-  state.skills = SKILLS.filter(s => !s.disabled).map(s => s.id);
-  state.defaultDrive = 'C:';
-  state.driveNode = state.driveGit = state.driveNpm = state.driveTools = state.drivePython = state.driveTesseract = state.drivePip = 'C:';
-
-  loadDrives();
-  buildSkillList();
-  updateNavBar();
+// ═══ INIT ═══
+async function init() {
+  try { const r = await fetch(`${BASE()}/api/drives`); const d = await r.json(); if (d.length>0) S.drives=d; } catch(e){}
+  S.drive = S.drives[0];
+  S.skills = [...SKILLS];
+  renderAll();
   setPage(0);
 }
-window.addEventListener('DOMContentLoaded', init);
 
-// ============ API HELPERS ============
-async function apiGet(path) {
-  try {
-    const res = await fetch(`${window.API_BASE}${path}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
-  } catch(e) {
-    console.error('API GET error:', e);
-    return null;
-  }
+// ═══ RENDER ALL PAGES ═══
+function optDrive(drive) { return S.drives.map(d => `<option ${d===drive?'selected':''}>${d}</option>`).join(''); }
+
+function renderAll() {
+  const el = document.getElementById('pageArea');
+  el.innerHTML = `
+<div class="page active" id="pg0">
+  <div class="banner welcome">
+    <div class="brand">SHIMIZU</div><h1>Claude Code 安装器</h1>
+    <div class="sub">一键安装 · 永久免费 · v1.0.6</div>
+  </div>
+  <div class="ct">
+    <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px">选择安装方式</div>
+    <div class="cards" style="flex-direction:row">
+      <div class="card pro" onclick="pickMode(false)" style="flex:1"><div class="wc-icon">⚙️</div><h3>我是专业用户</h3><p>逐步选择 Skills、工具、安全模式、API 配置</p></div>
+      <div class="card simple" onclick="pickMode(true)" style="flex:1"><div class="wc-icon">🚀</div><h3>我是小白用户</h3><p>简易安装 · 快速配置</p></div>
+    </div>
+    <div style="margin-top:16px;font-size:11px;color:var(--text2)">专业模式：完整控制安装过程 | 小白模式：简易安装 · 快速配置</div>
+  </div>
+</div>
+
+<div class="page" id="pg1">
+  <div class="banner step"><div class="badge">1</div><span class="st">环境检测</span></div>
+  <div class="ct">
+    <div class="flow-row">
+      <span>语言:</span><select id="langSel"><option>中文</option><option>English</option></select>
+      <span style="margin-left:8px">安装盘符:</span><select id="envDrive" onchange="S.drive=this.value">${optDrive(S.drive)}</select>
+      <button class="btn-sm" onclick="detectEnv()">⟳ 重新检测</button>
+    </div>
+    <div class="stat-cards" id="statCards" style="margin-top:14px"></div>
+    <div id="envPath" style="margin-top:10px;font-size:10px;color:var(--text2)"></div>
+  </div>
+</div>
+
+<div class="page" id="pg2">
+  <div class="banner step"><div class="badge">2</div><span class="st">Skills 选择</span></div>
+  <div class="ct">
+    <button class="pill" id="pillAll" onclick="toggleAllSkills()">全选 / 取消全选</button>
+    <div id="skillList" style="max-height:380px;overflow-y:auto"></div>
+  </div>
+</div>
+
+<div class="page" id="pg3">
+  <div class="banner step"><div class="badge">3</div><span class="st">工具与逻辑</span></div>
+  <div class="ct">
+    <div class="chk-row on" onclick="this.classList.toggle('on')" id="chkTools"><div class="chk-box"></div><div><div class="chk-label">安装截图操作工具 (Python)</div><div class="chk-desc">scr / ocr / see / act / browser — 屏幕截图、OCR、鼠标键盘、浏览器自动化</div></div></div>
+    <div class="chk-row on" onclick="this.classList.toggle('on')" id="chkLogic"><div class="chk-box"></div><div><div class="chk-label">添加截图辅助逻辑 (写入 CLAUDE.md)</div></div></div>
+    <textarea readonly style="margin-left:28px;width:calc(100%-30px);height:40px;border-radius:8px;border:1.5px solid #dde;padding:8px;font-family:Consolas,monospace;font-size:10px;resize:none;margin-bottom:14px;background:#f8f9fa">当用户请求不清晰时，主动询问是否需要截图查看。</textarea>
+    <div class="chk-row" onclick="toggleCustomLogic()" id="chkCustomLogic"><div class="chk-box"></div><div><div class="chk-label">为 Claude Code 添加底层逻辑</div><div class="chk-desc">自定义 CLAUDE.md 内容，控制 Claude Code 行为</div></div></div>
+    <div class="expand" id="expCustomLogic"><div class="field-panel"><div class="fw"><label>CLAUDE.md 内容</label><textarea id="txtClaudeMd" placeholder="# CLAUDE.md&#10;你是..."></textarea></div></div></div>
+  </div>
+</div>
+
+<div class="page" id="pg4">
+  <div class="banner step"><div class="badge">4</div><span class="st">安全模式</span></div>
+  <div class="ct">
+    <div class="opt-cards">
+      <div class="opt-card" id="optSafe" onclick="pickSec('safe')"><div class="o-dot"></div><div><div class="o-title">安全模式</div><div class="o-desc">高威胁操作需要用户确认</div></div></div>
+      <div class="opt-card sel" id="optPro" onclick="pickSec('pro')"><div class="o-dot"></div><div><div class="o-title">专业通行模式 (推荐)</div><div class="o-desc">所有操作无需确认 — 适合高级用户</div></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="pg5">
+  <div class="banner step"><div class="badge" id="apiBadge">5</div><span class="st">API 配置</span><span class="step-info" id="apiStepInfo"></span></div>
+  <div class="ct" style="overflow-y:auto">
+    <div class="opt-cards">
+      <div class="opt-card" id="optAnth" onclick="pickApi('anthropic')"><div class="o-dot"></div><div><div class="o-title">Anthropic API <span class="badge-tag warn">不推荐 · 需登录账号</span></div><div class="o-desc">需要 Claude Code 账号登录，国内访问可能受限</div></div></div>
+      <div class="opt-card sel" id="optDS" onclick="pickApi('deepseek')"><div class="o-dot"></div><div><div class="o-title">DeepSeek <span class="badge-tag rec">推荐</span></div><div class="o-desc">deepseek-v4-pro[1m] · 4个模型槽预填 · subagent 用 v4-flash</div></div></div>
+      <div class="opt-card" id="optCust" onclick="pickApi('custom')"><div class="o-dot"></div><div><div class="o-title">自定义选择模型</div><div class="o-desc">自行填入 API 密钥、请求地址、模型映射（类似 CC Switch）</div></div></div>
+    </div>
+    <div class="expand" id="expDS"><div class="field-panel"><div class="fw"><label>API Key <span class="req">*必填</span></label><input type="password" placeholder="sk-..." id="dsKey"></div><div class="fw" style="font-size:10px;color:var(--text2)">预设模型: deepseek-v4-pro[1m] (主/Opus/Sonnet) + deepseek-v4-flash (Haiku/Subagent)</div></div></div>
+    <div class="expand" id="expCust"><div class="field-panel">
+      <div class="fw"><label>API Key <span class="req">*必填</span></label><input type="password" placeholder="输入 API 密钥" id="cKey"></div>
+      <div class="fw"><label>请求地址 (API Base URL) <span class="req">*必填</span></label><input type="text" placeholder="api.example.com" id="cUrl"><div style="font-size:10px;color:var(--text2)">无需输入 https://，自动补全</div></div>
+      <div class="fw" style="font-weight:700;font-size:11px;color:var(--text2);margin:4px 0">映射模型（以下 4 项必填）</div>
+      <div><label>主模型 <span class="req">*必填</span></label><input type="text" placeholder="model-name" id="cMain"></div>
+      <div><label>Haiku 默认模型 <span class="req">*必填</span></label><input type="text" placeholder="haiku-model" id="cHaiku"></div>
+      <div><label>Sonnet 默认模型 <span class="req">*必填</span></label><input type="text" placeholder="sonnet-model" id="cSonnet"></div>
+      <div><label>Opus 默认模型 <span class="req">*必填</span></label><input type="text" placeholder="opus-model" id="cOpus"></div>
+      <div class="fw"><div class="chk-row on" onclick="this.classList.toggle('on')" id="chkSub">
+        <div class="chk-box"></div><div class="chk-label">配置 Subagent 模型 <span style="color:var(--text2);font-weight:400;font-size:10px">(选填)</span></div>
+      </div></div>
+      <div class="fw" id="subFld" style="display:none"><input type="text" placeholder="subagent-model" id="cSub"></div>
+      <div class="fw"><div class="chk-row on" id="chkThink" onclick="this.classList.toggle('on');S.maxThinking=this.classList.contains('on')"><div class="chk-box"></div><div class="chk-label">启用最大强度思考</div></div></div>
+      <div class="fw"><div class="chk-row" id="chkNoUp" onclick="this.classList.toggle('on');S.noUpdate=this.classList.contains('on')"><div class="chk-box"></div><div class="chk-label">禁用自动更新</div></div></div>
+    </div></div>
+  </div>
+</div>
+
+<div class="page" id="pg6">
+  <div class="banner step"><div class="badge" id="cfgBadge">6</div><span class="st">安装配置</span><span class="step-info" id="cfgStepInfo"></span></div>
+  <div class="ct">
+    <div style="font-weight:700;font-size:14px;color:var(--text);margin-bottom:12px">选择安装位置</div>
+    <div class="flow-row"><span>默认盘符:</span><select id="cfgDrive" onchange="S.drive=this.value;refreshPaths()">${optDrive(S.drive)}</select></div>
+    <div class="path-list" id="pathHint"></div>
+    <div class="chk-row" id="chkCustomPath" onclick="toggleCustomPaths()"><div class="chk-box"></div><div><div class="chk-label">工具自定义安装位置</div><div class="chk-desc">单独指定每个工具安装到哪个盘符</div></div></div>
+    <div class="expand" id="expCustPath"><div class="field-panel" id="custPathFields"></div></div>
+  </div>
+</div>
+
+<div class="page" id="pg7">
+  <div class="banner step"><div class="badge" id="insBadge">7</div><span class="st">安装</span><span class="step-info" id="insStepInfo"></span></div>
+  <div class="ct">
+    <button class="install-btn" id="btnInstall" onclick="startInstall()">开始安装</button>
+    <div class="progress-wrap"><div class="progress-bar"><div class="progress-fill" id="progFill"></div></div></div>
+    <div class="terminal" id="termLog">就绪 — 点击"开始安装"按钮...</div>
+  </div>
+</div>`;
+
+  // Post-render setup
+  refreshPaths();
+  buildSkillRows();
+  detectEnv();
+  updateApiUI();
+  updateSteps();
 }
 
-async function apiPost(path, data) {
-  try {
-    const res = await fetch(`${window.API_BASE}${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
-  } catch(e) {
-    console.error('API POST error:', e);
-    return null;
-  }
-}
-
-// ============ DRIVES ============
-async function loadDrives() {
-  const drives = await apiGet('/api/drives');
-  if (drives && Array.isArray(drives) && drives.length > 0) {
-    state.drives = drives;
-    state.defaultDrive = drives[0];
-    populateDriveSelectors();
-    updatePathPreviews();
-  } else {
-    state.drives = ['C:', 'D:'];
-    state.defaultDrive = 'C:';
-    populateDriveSelectors();
-  }
-}
-
-function populateDriveSelectors() {
-  const opts = state.drives.map(d => `<option value="${d}">${d}</option>`).join('');
-  const selects = ['envDrive','cfgDrive','driveNode','driveGit','driveNpm','driveTools','drivePython','driveTesseract','drivePip'];
-  selects.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.innerHTML = opts;
-  });
-  if (document.getElementById('envDrive')) document.getElementById('envDrive').value = state.defaultDrive;
-  if (document.getElementById('cfgDrive')) document.getElementById('cfgDrive').value = state.defaultDrive;
-}
-
-function onEnvDriveChange() {
-  state.defaultDrive = document.getElementById('envDrive').value;
-}
-
-// ============ NAVIGATION ============
+// ═══ NAVIGATION ═══
 function setPage(n) {
+  S.page = n;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  const pg = document.getElementById('page' + n);
-  if (pg) pg.classList.add('active');
-  state.currentPage = n;
-  updateNavBar();
-
-  // Prepare pages on arrival
-  if (n === 1) detectEnv();
-  if (n === 6) updatePathPreviews();
-  if (n === 5) updateApiSteps();
-  if (n === 6) updateConfigSteps();
-  if (n === 7) updateInstallSteps();
-
-  // Scroll to top
-  document.getElementById('app').scrollIntoView({ behavior: 'smooth' });
-
-  // Simple mode redirects
-  if (state.isSimple && n >= 1 && n <= 4) {
-    // Skip pages 1-4 in simple mode: go directly to page 5
-    if (n > 0 && n <= 4) { setPage(5); return; }
-  }
+  const pg = document.getElementById('pg'+n); if (pg) pg.classList.add('active');
+  const nav = document.getElementById('navBar');
+  const btnN = document.getElementById('btnNext');
+  if (n === 0 || S.installing) { nav.style.display = 'none'; }
+  else { nav.style.display = 'flex'; btnN.style.display = (n===7)?'none':''; }
+  if (n===6) refreshPaths();
+  if (n===5) updateApiUI();
+  updateSteps();
+  document.getElementById('pageArea').scrollTop = 0;
 }
 
-function updateNavBar() {
-  const bar = document.getElementById('navBar');
-  const btnNext = document.getElementById('btnNext');
-  const btnBack = document.getElementById('btnBack');
-
-  if (state.currentPage === 0 || state.installing) {
-    bar.style.display = 'none';
-    return;
-  }
-
-  bar.style.display = 'flex';
-
-  // Page 7: no Next button, show only Back
-  if (state.currentPage === 7) {
-    btnNext.style.display = 'none';
-  } else {
-    btnNext.style.display = '';
-  }
-
-  btnBack.style.display = '';
+function updateSteps() {
+  const ab = document.getElementById('apiBadge'); if (ab) ab.textContent = S.simple ? '1' : '5';
+  const cb = document.getElementById('cfgBadge'); if (cb) cb.textContent = S.simple ? '2' : '6';
+  const ib = document.getElementById('insBadge'); if (ib) ib.textContent = S.simple ? '3' : '7';
+  const asi = document.getElementById('apiStepInfo'); if (asi) asi.textContent = S.simple ? '第 1 步 / 共 3 步' : '';
+  const csi = document.getElementById('cfgStepInfo'); if (csi) csi.textContent = S.simple ? '第 2 步 / 共 3 步' : '';
+  const isi = document.getElementById('insStepInfo'); if (isi) isi.textContent = S.simple ? '第 3 步 / 共 3 步' : '';
 }
 
+function pickMode(isSimple) { S.simple = isSimple; updateSteps(); setPage(isSimple ? 5 : 1); renderAll(); setPage(isSimple ? 5 : 1); }
 function goNext() {
-  const cp = state.currentPage;
-
-  // Validate page 5 (API config)
-  if (cp === 5) {
-    if (!validateApiPage()) return;
-  }
-
-  if (state.isSimple) {
-    if (cp === 0) { setPage(5); return; }
-    if (cp === 5) { setPage(6); return; }
-    if (cp === 6) { setPage(7); return; }
-    return;
-  }
-
-  if (cp < 7) { setPage(cp + 1); }
+  if (S.page === 5 && !validateApi()) return;
+  if (S.simple) { if (S.page===5) setPage(6); else if (S.page===6) setPage(7); }
+  else { if (S.page<7) setPage(S.page+1); }
 }
-
 function goBack() {
-  const cp = state.currentPage;
-
-  if (state.isSimple) {
-    if (cp === 5) { setPage(0); return; }
-    if (cp === 6) { setPage(5); return; }
-    if (cp === 7) { setPage(6); return; }
-    return;
-  }
-
-  if (cp > 0) { setPage(cp - 1); }
+  if (S.simple) { if (S.page===5) setPage(0); else if (S.page===6) setPage(5); else if (S.page===7) setPage(6); }
+  else { if (S.page>0) setPage(S.page-1); }
 }
 
-// ============ PAGE 0: MODE SELECT ============
-function selectMode(isSimple) {
-  state.isSimple = isSimple;
-  document.getElementById('cardPro').classList.toggle('selected', !isSimple);
-  document.getElementById('cardSimple').classList.toggle('selected', isSimple);
-  // Auto-advance: pro → page 1, simple → page 5
-  setTimeout(() => { if (isSimple) setPage(5); else setPage(1); }, 200);
-}
-
-// ============ PAGE 1: ENVIRONMENT DETECTION ============
+// ═══ PAGE 1: ENV DETECTION ═══
 function detectEnv() {
-  document.getElementById('statOS').textContent = 'Windows 11 Pro';
-  document.getElementById('statSpace').textContent = '计算中...';
-  document.getElementById('statNode').textContent = '检测中...';
-  document.getElementById('statGit').textContent = '检测中...';
+  const cards = document.getElementById('statCards');
+  const pathEl = document.getElementById('envPath');
+  // Real detection via cmd
+  const items = [
+    {n:'Node.js',ok:false,ver:'检测中...'},
+    {n:'Git',ok:false,ver:'检测中...'},
+    {n:'Python',ok:false,ver:'检测中...'},
+    {n:'Claude Code',ok:false,ver:'检测中...'},
+  ];
+  cards.innerHTML = items.map(i => `<div class="stat-card"><div class="sdot"></div><span class="sn">${i.n}</span><span class="sv">${i.ver}</span></div>`).join('');
+  pathEl.textContent = `路径: Node → ${S.drive}\\Claude Code tool\\NodeJS  Git → ${S.drive}\\Claude Code tool\\Git  npm → ${S.drive}\\Claude Code tool\\npm-global`;
 
-  // Simulate detection - in real usage this would call C# backend
-  setTimeout(() => {
-    const drive = document.getElementById('envDrive')?.value || state.defaultDrive;
-    document.getElementById('statSpace').textContent = drive + ' - 可用空间充足';
-    document.getElementById('statNode').textContent = 'v20.18.0 (将通过安装器安装)';
-    document.getElementById('statGit').textContent = '将通过安装器安装';
-  }, 600);
+  // Async real check
+  checkCmd('node','--version').then(v => updateStat(0, v, 'v'));
+  checkCmd('git','--version').then(v => updateStat(1, v, 'git version '));
+  checkCmd('python','--version').then(v => updateStat(2, v, 'Python '));
+  checkCmd('claude','--version').then(v => updateStat(3, v, ''));
 }
 
-// ============ PAGE 2: SKILLS ============
-function buildSkillList() {
-  const container = document.getElementById('skillList');
-  let html = '';
-  SKILLS.forEach((s, i) => {
-    const checked = !s.disabled && state.skills.includes(s.id);
-    html += `
-      <div class="skill-row ${s.disabled ? 'disabled' : ''}" onclick="${s.disabled ? '' : `toggleSkill('${s.id}', this)`}">
-        <div class="skill-check ${checked ? 'checked' : ''}"></div>
-        <span class="skill-name">${s.name}</span>
-        <span class="skill-tag">${s.tag}</span>
-      </div>`;
-  });
-  container.innerHTML = html;
-  updateSkillCount();
+async function checkCmd(cmd, args) {
+  try {
+    const r = await fetch(`${BASE()}/api/check-cmd?cmd=${encodeURIComponent(cmd)}&args=${encodeURIComponent(args)}`);
+    const j = await r.json();
+    return j.ok ? j.ver : '';
+  } catch(e) { return ''; }
 }
 
-function toggleSkill(id, rowEl) {
-  const idx = state.skills.indexOf(id);
-  if (idx >= 0) {
-    state.skills.splice(idx, 1);
-    rowEl.querySelector('.skill-check').classList.remove('checked');
-  } else {
-    state.skills.push(id);
-    rowEl.querySelector('.skill-check').classList.add('checked');
-  }
-  state.allSkillsSelected = (state.skills.length === SKILLS.filter(s => !s.disabled).length);
-  document.getElementById('pillSelectAll').classList.toggle('active', state.allSkillsSelected);
-  updateSkillCount();
+function updateStat(idx, ver, prefix) {
+  const cards = document.getElementById('statCards').children;
+  if (idx >= cards.length) return;
+  const card = cards[idx]; const ok = ver !== '';
+  card.className = 'stat-card ' + (ok ? 'ok' : 'no');
+  card.children[1].textContent = ok ? '已安装' : '未安装';
+  card.children[2].textContent = ok ? ver.replace(prefix,'').trim() : '—';
 }
 
-function toggleSelectAll() {
-  const enabled = SKILLS.filter(s => !s.disabled).map(s => s.id);
-  if (state.allSkillsSelected) {
-    state.skills = [];
-    state.allSkillsSelected = false;
-    document.getElementById('pillSelectAll').classList.remove('active');
-  } else {
-    state.skills = [...enabled];
-    state.allSkillsSelected = true;
-    document.getElementById('pillSelectAll').classList.add('active');
-  }
-  buildSkillList();
-  updateSkillCount();
+// ═══ PAGE 2: SKILLS ═══
+function buildSkillRows() {
+  const el = document.getElementById('skillList'); if (!el) return;
+  el.innerHTML = SKILLS.map((s,i) => `<div class="skill-row on" data-idx="${i}" onclick="toggleSkill(${i},this)"><div class="sk-chk"></div><span class="sk-name">${SKILL_NAMES[i]}</span><span class="sk-desc">${['开发工作流全家桶','20万+Skills搜索引擎','Word/Excel/PDF/PPT文档','高质量有风格UI','创建/修改自定义Skills','Prompt压缩器','操控本地浏览器','长期跨会话记忆','AI摆烂时强制换思路','架构/流程图生成'][i]}</span></div>`).join('');
 }
 
-function updateSkillCount() {
-  document.getElementById('skillCount').textContent = state.skills.length;
+function toggleSkill(idx, row) {
+  row.classList.toggle('on');
+  const skillId = SKILLS[idx];
+  if (row.classList.contains('on')) { if (!S.skills.includes(skillId)) S.skills.push(skillId); }
+  else { S.skills = S.skills.filter(s => s !== skillId); }
 }
 
-// ============ PAGE 3: TOOLS & LOGIC ============
-function toggleCheck(key) {
-  state[key] = !state[key];
-  const cb = document.getElementById('cb_' + key);
-  if (cb) cb.classList.toggle('checked', state[key]);
+function toggleAllSkills() {
+  const rows = document.querySelectorAll('#skillList .skill-row');
+  const allOn = Array.from(rows).every(r => r.classList.contains('on'));
+  rows.forEach(r => { if (allOn) r.classList.remove('on'); else r.classList.add('on'); });
+  S.skills = allOn ? [] : [...SKILLS];
 }
 
-function toggleCheckExpand(key) {
-  state[key] = !state[key];
-  if (key === 'installCustomLogic') state.installCustomLogic = !state.installCustomLogic;
-  if (key === 'customPaths') state.customPaths = !state.customPaths;
-  const cb = document.getElementById('cb_' + key);
-  if (cb) cb.classList.toggle('checked', state[key]);
-  const expand = document.getElementById('expand' + (key === 'installCustomLogic' ? 'CustomLogic' : 'CustomPaths'));
-  if (expand) expand.classList.toggle('open', state[key]);
-  if (key === 'customPaths') updatePathPreviews();
+// ═══ PAGE 3: TOOLS ═══
+function toggleCustomLogic() {
+  const row = document.getElementById('chkCustomLogic');
+  row.classList.toggle('on');
+  S.showCustomLogic = row.classList.contains('on');
+  const exp = document.getElementById('expCustomLogic');
+  if (S.showCustomLogic) exp.classList.add('show'); else exp.classList.remove('show');
 }
 
-// ============ PAGE 4: SECURITY ============
-function selectSecurity(mode) {
-  state.bypassPermissions = (mode === 'pro');
-  document.getElementById('optSafe').classList.toggle('selected', mode === 'safe');
-  document.getElementById('optPro').classList.toggle('selected', mode === 'pro');
+// ═══ PAGE 4: SECURITY ═══
+function pickSec(val) {
+  document.getElementById('optSafe').classList.toggle('sel', val==='safe');
+  document.getElementById('optPro').classList.toggle('sel', val==='pro');
 }
 
-// ============ PAGE 5: API CONFIG ============
-function selectApiProvider(provider) {
-  state.apiProvider = provider;
-  document.getElementById('optAnthropic').classList.toggle('selected', provider === 'anthropic');
-  document.getElementById('optDeepSeek').classList.toggle('selected', provider === 'deepseek');
-  document.getElementById('optCustom').classList.toggle('selected', provider === 'custom');
-
-  document.getElementById('expandAnthropic').classList.toggle('open', provider === 'anthropic');
-  document.getElementById('expandDeepSeek').classList.toggle('open', provider === 'deepseek');
-  document.getElementById('expandCustom').classList.toggle('open', provider === 'custom');
+// ═══ PAGE 5: API ═══
+function pickApi(val) {
+  S.api = val;
+  ['optAnth','optDS','optCust'].forEach(id => document.getElementById(id).classList.remove('sel'));
+  if (val==='anthropic') document.getElementById('optAnth').classList.add('sel');
+  if (val==='deepseek') document.getElementById('optDS').classList.add('sel');
+  if (val==='custom') document.getElementById('optCust').classList.add('sel');
+  updateApiUI();
 }
 
-function autoPrependHttps(input) {
-  let val = input.value.trim();
-  if (val && !/^https?:\/\//i.test(val)) {
-    input.value = 'https://' + val;
+function updateApiUI() {
+  document.getElementById('expDS').classList.toggle('show', S.api==='deepseek');
+  document.getElementById('expCust').classList.toggle('show', S.api==='custom');
+
+  // Subagent toggle
+  const subRow = document.getElementById('chkSub');
+  const subFld = document.getElementById('subFld');
+  if (subRow && subFld) {
+    subRow.onclick = function() { this.classList.toggle('on'); subFld.style.display = this.classList.contains('on') ? 'block' : 'none'; };
   }
 }
 
-function validateApiPage() {
-  const p = state.apiProvider;
-  if (p === 'anthropic') {
-    const key = document.getElementById('anthropicKey').value.trim();
-    if (!key) { showToast('请输入 Anthropic API Key'); return false; }
-    state.apiKey = key;
-  } else if (p === 'deepseek') {
-    const key = document.getElementById('deepseekKey').value.trim();
-    if (!key) { showToast('请输入 DeepSeek API Key'); return false; }
-    state.apiKey = key;
-  } else if (p === 'custom') {
-    const key = document.getElementById('customKey').value.trim();
-    const url = document.getElementById('customBaseUrl').value.trim();
-    if (!key) { showToast('请输入 API Key'); return false; }
-    if (!url) { showToast('请输入 Base URL'); return false; }
-    if (!/^https?:\/\//i.test(url)) { showToast('Base URL 必须以 https:// 开头'); return false; }
-    state.apiKey = key;
-    state.apiBaseUrl = url;
-    state.customMainModel = document.getElementById('customMainModel').value.trim();
-    state.customHaikuModel = document.getElementById('customHaikuModel').value.trim();
-    state.customSonnetModel = document.getElementById('customSonnetModel').value.trim();
-    state.customOpusModel = document.getElementById('customOpusModel').value.trim();
-    state.customSubagentModel = document.getElementById('customSubagentModel').value.trim();
+function validateApi() {
+  if (S.api === 'anthropic') return true;
+  if (S.api === 'deepseek') {
+    if (!(document.getElementById('dsKey')?.value?.trim())) { toast('请输入 DeepSeek API Key'); return false; }
+    return true;
+  }
+  if (S.api === 'custom') {
+    if (!(document.getElementById('cKey')?.value?.trim())) { toast('请输入 API Key'); return false; }
+    if (!(document.getElementById('cUrl')?.value?.trim())) { toast('请输入请求地址'); return false; }
+    if (!(document.getElementById('cMain')?.value?.trim())) { toast('请输入主模型'); return false; }
+    if (!(document.getElementById('cHaiku')?.value?.trim())) { toast('请输入 Haiku 模型'); return false; }
+    if (!(document.getElementById('cSonnet')?.value?.trim())) { toast('请输入 Sonnet 模型'); return false; }
+    if (!(document.getElementById('cOpus')?.value?.trim())) { toast('请输入 Opus 模型'); return false; }
+    return true;
   }
   return true;
 }
 
-function updateApiSteps() {
-  if (state.isSimple) {
-    document.getElementById('apiStepBadge').textContent = '1';
-    document.getElementById('apiStepSub').textContent = '第1步/共3步';
-  } else {
-    document.getElementById('apiStepBadge').textContent = '5';
-    document.getElementById('apiStepSub').textContent = '第1步/共3步';
-  }
+function toast(msg) {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = '⚠ ' + msg;
+  c.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .3s'; setTimeout(() => t.remove(), 300); }, 2500);
 }
 
-// ============ PAGE 6: INSTALL CONFIG ============
-function updateConfigSteps() {
-  if (state.isSimple) {
-    document.getElementById('cfgStepBadge').textContent = '2';
-    document.getElementById('cfgStepSub').textContent = '第2步/共3步';
-  } else {
-    document.getElementById('cfgStepBadge').textContent = '6';
-    document.getElementById('cfgStepSub').textContent = '第2步/共3步';
-  }
+// ═══ PAGE 6: INSTALL CONFIG ═══
+function refreshPaths() {
+  const el = document.getElementById('pathHint'); if (!el) return;
+  const d = S.drive;
+  el.innerHTML = TOOLS.map(t => `${t.name}${t.ver?' '+t.ver:''} → <code>${d}\\Claude Code tool\\${t.sub}</code>`).join('<br>');
+  // Custom path fields
+  const fld = document.getElementById('custPathFields'); if (!fld) return;
+  fld.innerHTML = TOOLS.map(t => {
+    const td = S.toolDrives[t.id] || d;
+    return `<div style="display:flex;align-items:center;gap:8px"><span style="font-weight:600;font-size:11px;color:var(--text);width:110px">${t.name}</span><select onchange="S.toolDrives['${t.id}']=this.value;refreshPaths()" style="width:70px">${optDrive(td)}</select><span style="font-size:10px;color:var(--text2)">→ ${td}\\Claude Code tool\\${t.sub}</span></div>`;
+  }).join('');
 }
 
-function updatePathPreviews() {
-  const drive = state.customPaths ? null : (document.getElementById('cfgDrive')?.value || state.defaultDrive);
-  function d(selId) {
-    if (!state.customPaths) return drive;
-    const el = document.getElementById(selId);
-    return el ? el.value : state.defaultDrive;
-  }
-  const nodeD = d('driveNode');
-  const gitD = d('driveGit');
-  const npmD = d('driveNpm');
-  const toolsD = d('driveTools');
-  const pyD = d('drivePython');
-  const tesD = d('driveTesseract');
-  const pipD = d('drivePip');
-
-  document.getElementById('pathPreviewNode').textContent = `${nodeD}\\Claude Code tool\\NodeJS`;
-  document.getElementById('pathPreviewGit').textContent = `${gitD}\\Claude Code tool\\Git`;
-  document.getElementById('pathPreviewNpm').textContent = `${npmD}\\Claude Code tool\\npm-global`;
-  document.getElementById('pathPreviewTools').textContent = `${toolsD}\\Claude Code tool\\cc-tools`;
-  document.getElementById('pathPreviewPython').textContent = `${pyD}\\Claude Code tool\\Python312`;
-  document.getElementById('pathPreviewTesseract').textContent = `${tesD}\\Claude Code tool\\Tesseract-OCR`;
-  document.getElementById('pathPreviewPip').textContent = `${pipD}\\Python-packages`;
+function toggleCustomPaths() {
+  const row = document.getElementById('chkCustomPath');
+  row.classList.toggle('on');
+  S.showCustomPaths = row.classList.contains('on');
+  const exp = document.getElementById('expCustPath');
+  if (S.showCustomPaths) { exp.classList.add('show'); refreshPaths(); }
+  else exp.classList.remove('show');
 }
 
-// ============ PAGE 7: INSTALL ============
-function updateInstallSteps() {
-  if (state.isSimple) {
-    document.getElementById('instStepBadge').textContent = '3';
-    document.getElementById('instStepSub').textContent = '第3步/共3步';
-  } else {
-    document.getElementById('instStepBadge').textContent = '7';
-    document.getElementById('instStepSub').textContent = '第3步/共3步';
-  }
-}
-
-function getDrive(selId) {
-  if (!state.customPaths) return document.getElementById('cfgDrive')?.value || state.defaultDrive;
-  const el = document.getElementById(selId);
-  return el ? el.value : state.defaultDrive;
-}
-
-function buildInstallSettings() {
-  const p = state.apiProvider;
-  let apiKey = state.apiKey;
-  let apiBaseUrl = state.apiBaseUrl || '';
-  let cmm = '', chm = '', csm = '', com = '', csubm = '';
-
-  // Capture from DOM in case state wasn't synced
-  if (p === 'anthropic') {
-    apiKey = document.getElementById('anthropicKey').value.trim();
-  } else if (p === 'deepseek') {
-    apiKey = document.getElementById('deepseekKey').value.trim();
-  } else if (p === 'custom') {
-    apiKey = document.getElementById('customKey').value.trim();
-    apiBaseUrl = document.getElementById('customBaseUrl').value.trim();
-    cmm = document.getElementById('customMainModel').value.trim();
-    chm = document.getElementById('customHaikuModel').value.trim();
-    csm = document.getElementById('customSonnetModel').value.trim();
-    com = document.getElementById('customOpusModel').value.trim();
-    csubm = document.getElementById('customSubagentModel').value.trim();
-  }
-
-  return {
-    IsSimple: state.isSimple,
-    Drive: document.getElementById('cfgDrive')?.value || state.defaultDrive,
-    NodePath: `${getDrive('driveNode')}\\Claude Code tool\\NodeJS`,
-    GitPath: `${getDrive('driveGit')}\\Claude Code tool\\Git`,
-    NpmPrefix: `${getDrive('driveNpm')}\\Claude Code tool\\npm-global`,
-    ToolsPath: `${getDrive('driveTools')}\\Claude Code tool\\cc-tools`,
-    PythonPath: `${getDrive('drivePython')}\\Claude Code tool\\Python312`,
-    TesseractPath: `${getDrive('driveTesseract')}\\Claude Code tool\\Tesseract-OCR`,
-    PipPath: `${getDrive('drivePip')}\\Python-packages`,
-    InstallTools: state.installTools,
-    InstallLogic: state.installLogic,
-    InstallCustomLogic: state.installCustomLogic,
-    CustomLogicContent: state.installCustomLogic ? (document.getElementById('expandCustomLogic')?.querySelector('textarea')?.value || '') : '',
-    Skills: state.skills,
-    BypassPermissions: state.bypassPermissions,
-    ApiProvider: p,
-    ApiKey: apiKey,
-    ApiBaseUrl: apiBaseUrl,
-    CustomMainModel: cmm,
-    CustomHaikuModel: chm,
-    CustomSonnetModel: csm,
-    CustomOpusModel: com,
-    CustomSubagentModel: csubm,
-    MaxThinking: true,
-    NoUpdate: false,
-  };
-}
-
+// ═══ PAGE 7: INSTALL ═══
 async function startInstall() {
-  if (state.installing) return;
+  if (S.installing) return;
+  S.installing = true; S.installDone = false;
+  document.getElementById('btnInstall').disabled = true;
+  document.getElementById('btnInstall').textContent = '安装中...';
+  document.getElementById('navBar').style.display = 'none';
+  document.getElementById('termLog').textContent = '正在启动安装引擎...';
+  document.getElementById('progFill').style.width = '0%';
 
-  const settings = buildInstallSettings();
-  state.installing = true;
+  // Build settings
+  const d = S.drive;
+  const td = (id) => (S.showCustomPaths && S.toolDrives[id]) ? S.toolDrives[id] : d;
+  const settings = {
+    IsSimple: S.simple, Drive: d,
+    NodePath: td('node')+'\\Claude Code tool\\NodeJS',
+    GitPath: td('git')+'\\Claude Code tool\\Git',
+    NpmPrefix: td('npm')+'\\Claude Code tool\\npm-global',
+    ToolsPath: td('cctools')+'\\Claude Code tool\\cc-tools',
+    PythonPath: td('python')+'\\Claude Code tool\\Python312',
+    TesseractPath: td('tesseract')+'\\Claude Code tool\\Tesseract-OCR',
+    PipPath: d+'\\Python-packages',
+    InstallTools: document.getElementById('chkTools')?.classList.contains('on') ?? true,
+    InstallLogic: document.getElementById('chkLogic')?.classList.contains('on') ?? true,
+    InstallCustomLogic: S.showCustomLogic,
+    CustomLogicContent: document.getElementById('txtClaudeMd')?.value ?? '',
+    Skills: S.skills,
+    BypassPermissions: document.getElementById('optPro')?.classList.contains('sel') ?? true,
+    ApiProvider: S.api,
+    ApiKey: S.api==='deepseek' ? (document.getElementById('dsKey')?.value??'') : (document.getElementById('cKey')?.value??''),
+    ApiBaseUrl: document.getElementById('cUrl')?.value??'',
+    CustomMainModel: document.getElementById('cMain')?.value??'',
+    CustomHaikuModel: document.getElementById('cHaiku')?.value??'',
+    CustomSonnetModel: document.getElementById('cSonnet')?.value??'',
+    CustomOpusModel: document.getElementById('cOpus')?.value??'',
+    CustomSubagentModel: document.getElementById('cSub')?.value??'',
+    MaxThinking: S.maxThinking,
+    NoUpdate: S.noUpdate,
+  };
 
-  const btn = document.getElementById('btnStartInstall');
-  btn.disabled = true;
-  document.getElementById('btnInstallText').innerHTML = '<span class="spinner"></span>安装中...';
-
-  document.getElementById('progressWrap').style.display = 'block';
-  document.getElementById('terminal').innerHTML = '<div class="log-line">正在发送安装请求...</div>';
-
-  updateNavBar();
-
-  const result = await apiPost('/api/install', settings);
-  if (!result) {
-    document.getElementById('terminal').innerHTML += '<div class="log-line error">错误: 无法连接到后端服务</div>';
-    state.installing = false;
-    btn.disabled = false;
-    document.getElementById('btnInstallText').innerHTML = '&#9889; 重新安装';
-    updateNavBar();
-    return;
+  try {
+    const r = await fetch(`${BASE()}/api/install`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(settings) });
+    if (!r.ok) throw new Error('API error: '+r.status);
+    document.getElementById('termLog').textContent = '安装已启动，等待进度...';
+    S.timer = setInterval(pollProgress, 500);
+  } catch(e) {
+    document.getElementById('termLog').textContent = '启动失败: ' + e.message;
+    S.installing = false; document.getElementById('btnInstall').disabled = false;
+    document.getElementById('btnInstall').textContent = '开始安装';
   }
-
-  appendLog('success', '安装请求已发送，开始监控进度...');
-  pollProgress();
 }
 
-function pollProgress() {
-  state.pollTimer = setInterval(async () => {
-    const data = await apiGet('/api/progress');
-    if (!data) {
-      appendLog('error', '获取进度失败，正在重试...');
-      return;
+async function pollProgress() {
+  try {
+    const r = await fetch(`${BASE()}/api/progress`);
+    const p = await r.json();
+    document.getElementById('termLog').textContent = p.logs || '';
+    const el = document.getElementById('progFill');
+    if (p.total > 0) el.style.width = (p.percent / p.total * 100) + '%';
+    if (p.done) {
+      clearInterval(S.timer);
+      el.style.width = '100%';
+      S.installing = false; S.installDone = true;
+      document.getElementById('navBar').style.display = 'flex';
+      showCompleteModal();
     }
-
-    // Display logs
-    if (data.logs) {
-      const existing = document.getElementById('terminal').innerText;
-      const newLogs = data.logs;
-      if (newLogs && newLogs !== existing) {
-        const lines = newLogs.split('\n');
-        const terminal = document.getElementById('terminal');
-        // Only add new lines
-        const currentLineCount = terminal.querySelectorAll('.log-line').length;
-        for (let i = currentLineCount; i < lines.length; i++) {
-          const line = lines[i];
-          if (line.trim()) {
-            let cls = 'log-line';
-            const lower = line.toLowerCase();
-            if (lower.includes('error') || lower.includes('fail') || lower.includes('exception')) cls += ' error';
-            else if (lower.includes('warn')) cls += ' warn';
-            else if (lower.includes('success') || lower.includes('complete') || lower.includes('done')) cls += ' success';
-            appendLogDirect(cls, line);
-          }
-        }
-      }
+    if (p.error) {
+      clearInterval(S.timer);
+      S.installing = false;
+      document.getElementById('navBar').style.display = 'flex';
+      document.getElementById('btnInstall').disabled = false;
+      document.getElementById('btnInstall').textContent = '重试安装';
     }
-
-    // Update progress
-    if (data.percent !== undefined && data.total) {
-      const pct = Math.round((data.percent / data.total) * 100);
-      document.getElementById('progressFill').style.width = pct + '%';
-      document.getElementById('progressPercent').textContent = data.percent + ' / ' + data.total;
-      document.getElementById('progressLabel').textContent = '安装中...';
-    }
-
-    // Check completion
-    if (data.done) {
-      clearInterval(state.pollTimer);
-      state.pollTimer = null;
-      state.installing = false;
-      document.getElementById('progressFill').style.width = '100%';
-      document.getElementById('progressPercent').textContent = data.total + ' / ' + data.total;
-      document.getElementById('progressLabel').textContent = '完成!';
-      updateNavBar();
-      showCompletionModal();
-    }
-
-    if (data.error) {
-      appendLog('error', '错误: ' + data.error);
-    }
-  }, 500);
+  } catch(e) {}
 }
 
-function appendLog(cls, text) {
-  const terminal = document.getElementById('terminal');
-  const div = document.createElement('div');
-  div.className = 'log-line ' + (cls || '');
-  div.textContent = text;
-  terminal.appendChild(div);
-  terminal.scrollTop = terminal.scrollHeight;
+function showCompleteModal() {
+  const d = S.drive;
+  const td = (id) => (S.showCustomPaths && S.toolDrives[id]) ? S.toolDrives[id] : d;
+  const tools = TOOLS.map(t => `${t.name}${t.ver?' '+t.ver:''} → ${td(t.id)}\\Claude Code tool\\${t.sub}`).join('<br>');
+  document.getElementById('modalContainer').innerHTML = `
+    <div class="modal-overlay"><div class="modal-box">
+      <h2>✅ 安装完成!</h2><div class="mo-sub">Claude Code Installer v1.0.6 · Shimizu</div>
+      <div class="mo-list">
+        <span class="cat">已安装工具</span>${tools}
+        <span class="cat" style="margin-top:12px">已安装 Skills</span>${S.skills.map(s => SKILL_NAMES[SKILLS.indexOf(s)]).join(', ')}
+        <span class="cat" style="margin-top:12px">配置</span>
+        settings.json → ~/.claude/<br>CLAUDE.md → ~/<br>桌面快捷方式: Claude Code / CC Switch
+      </div>
+      <button class="mo-btn" onclick="document.getElementById('modalContainer').innerHTML=''">完成</button>
+    </div></div>
+  `;
 }
 
-function appendLogDirect(cls, text) {
-  const terminal = document.getElementById('terminal');
-  const div = document.createElement('div');
-  div.className = cls || 'log-line';
-  div.textContent = text;
-  terminal.appendChild(div);
-  terminal.scrollTop = terminal.scrollHeight;
-}
-
-// ============ COMPLETION MODAL ============
-function showCompletionModal() {
-  const settings = buildInstallSettings();
-  const drive = settings.Drive;
-
-  let toolsHtml = '';
-  if (settings.InstallTools) {
-    toolsHtml += `<div class="installed-item"><span class="item-name">Node.js</span><span class="item-arrow">→</span><span class="item-path">${settings.NodePath}</span></div>`;
-    toolsHtml += `<div class="installed-item"><span class="item-name">Git</span><span class="item-arrow">→</span><span class="item-path">${settings.GitPath}</span></div>`;
-    toolsHtml += `<div class="installed-item"><span class="item-name">Python 3.12</span><span class="item-arrow">→</span><span class="item-path">${settings.PythonPath}</span></div>`;
-    toolsHtml += `<div class="installed-item"><span class="item-name">Tesseract OCR</span><span class="item-arrow">→</span><span class="item-path">${settings.TesseractPath}</span></div>`;
-    toolsHtml += `<div class="installed-item"><span class="item-name">Nircmd</span><span class="item-arrow">→</span><span class="item-path">${settings.ToolsPath}</span></div>`;
-  }
-
-  let skillsHtml = '';
-  settings.Skills.forEach(s => {
-    skillsHtml += `<div class="installed-item"><span class="item-name">${s}</span><span class="item-arrow">→</span><span class="item-path">${settings.ToolsPath}\\skills\\${s.toLowerCase().replace(/\s+/g,'-')}</span></div>`;
-  });
-
-  let configHtml = '';
-  configHtml += `<div class="installed-item"><span class="item-name">API Provider</span><span class="item-arrow">→</span><span class="item-path">${settings.ApiProvider}</span></div>`;
-  configHtml += `<div class="installed-item"><span class="item-name">安全模式</span><span class="item-arrow">→</span><span class="item-path">${settings.BypassPermissions ? '专业模式' : '安全模式'}</span></div>`;
-  configHtml += `<div class="installed-item"><span class="item-name">npm-global</span><span class="item-arrow">→</span><span class="item-path">${settings.NpmPrefix}</span></div>`;
-  configHtml += `<div class="installed-item"><span class="item-name">Pip Packages</span><span class="item-arrow">→</span><span class="item-path">${settings.PipPath}</span></div>`;
-
-  let html = '';
-  if (toolsHtml) html += `<div class="installed-section"><h3>已安装工具</h3>${toolsHtml}</div>`;
-  if (skillsHtml) html += `<div class="installed-section"><h3>已安装 Skills</h3>${skillsHtml}</div>`;
-  html += `<div class="installed-section"><h3>配置</h3>${configHtml}</div>`;
-
-  document.getElementById('modalContent').innerHTML = html;
-  document.getElementById('modalOverlay').style.display = 'flex';
-}
-
-function finishInstall() {
-  document.getElementById('modalOverlay').style.display = 'none';
-  // Optionally close the window or go back to welcome
-  setPage(0);
-  if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; }
-  state.installing = false;
-  document.getElementById('btnInstallText').innerHTML = '&#9889; 开始安装';
-  document.getElementById('btnStartInstall').disabled = false;
-  document.getElementById('progressWrap').style.display = 'none';
-  document.getElementById('terminal').innerHTML = '<div class="log-line">等待开始安装...</div>';
-  document.getElementById('modalOverlay').style.display = 'none';
-  updateNavBar();
-}
-
-// ============ TOAST ============
-let toastTimer = null;
-function showToast(msg) {
-  const toast = document.getElementById('toast');
-  toast.textContent = msg;
-  toast.classList.add('show');
-  if (toastTimer) clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { toast.classList.remove('show'); }, 2500);
-}
-
-// ============ SYNC TEXTAREA ============
-document.addEventListener('DOMContentLoaded', () => {
-  // Sync custom logic textarea
-  const textarea = document.querySelector('#expandCustomLogic textarea');
-  if (textarea) {
-    textarea.addEventListener('input', () => {
-      state.customLogicContent = textarea.value;
-    });
-  }
-});
+// ═══ START ═══
+init();
 </script>
 </body>
 </html>
