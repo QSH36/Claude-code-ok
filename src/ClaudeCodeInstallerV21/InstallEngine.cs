@@ -415,10 +415,11 @@ public class InstallEngine
             "https://dl-b.feejii.com/storage/files/2026/05/24/8/5028555288/17796212017041.gz?t=6a12e7a2&rlimit=20&us=2FWc7rDlUZ&sign=4417596bbf4be6acf93af484c514f80f&download_name=claude.exe&p=null-3480982-44180484703",
         };
 
-        // 3. Download with 30-min timeout (approx 150MB)
+        // 3. Download with variable timeout per source
         var downloaded = false;
-        foreach (var u in urls)
+        for (int si = 0; si < urls.Count; si++)
         {
+            var u = urls[si];
             try
             {
                 // Handle local file copy
@@ -435,7 +436,10 @@ public class InstallEngine
                     continue;
                 }
 
-                _log($"  下载: {new Uri(u).Host}...");
+                // Official source: 10min, mirrors: 5min each
+                var timeout = si == 0 ? TimeSpan.FromMinutes(10) : TimeSpan.FromMinutes(5);
+                if (si > 0) _log("  官方源无法连接，使用备用源，网络较慢请耐心等待...");
+                _log($"  下载 [{si + 1}/{urls.Count}]: {new Uri(u).Host} (超时 {timeout.TotalMinutes:F0}min)...");
                 var tmp = Path.GetTempFileName();
                 using var wc = new WebClient();
                 wc.Headers.Add("User-Agent", "CCI/1.0");
@@ -444,16 +448,16 @@ public class InstallEngine
                 {
                     if (e.ProgressPercentage > lastPct + 10) { lastPct = e.ProgressPercentage; _log($"    {e.ProgressPercentage}%"); }
                 };
-                var cts = new CancellationTokenSource(TimeSpan.FromMinutes(30));
+                using var cts = new CancellationTokenSource(timeout);
                 await wc.DownloadFileTaskAsync(new Uri(u), tmp).WaitAsync(cts.Token);
                 if (File.Exists(tmp) && new FileInfo(tmp).Length > 50_000_000)
                 {
                     File.Move(tmp, targetExe, true);
-                    downloaded = true;
-                    break;
+                    downloaded = true; _log("  ✓ 下载完成"); break;
                 }
                 try { File.Delete(tmp); } catch { }
             }
+            catch (OperationCanceledException) { _log($"    ✗ 超时 ({si + 1}/{urls.Count})"); }
             catch (Exception ex) { _log($"    ✗ {ex.Message}"); }
         }
         if (!downloaded) { _log("  ✗ 所有下载源均失败"); throw new Exception("网络有问题，无法下载 Claude Code。请检查网络连接后重试。"); }
