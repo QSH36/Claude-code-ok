@@ -403,14 +403,16 @@ public class InstallEngine
         }
         if (string.IsNullOrEmpty(version)) { version = "2.1.150"; _log($"  ⚠ 使用回退版本: {version}"); }
 
-        // 2. Build download URL chain (official → mirror → error)
+        // 2. Build download URL chain (official → panurl → feejii → error)
         var plat = "win32-x64";
         var urls = new List<string>
         {
             // Official CDN (primary)
             $"https://downloads.claude.ai/claude-code-releases/{version}/{plat}/claude.exe",
+            // Panurl mirror
+            "https://www.panurl.cn/down.php/ea77e60cade1fd320733930f9a7534d7.exe",
             // Feejii mirror
-            $"https://dl-b.feejii.com/storage/files/2026/05/24/8/5028555288/17796212017041.gz?t=6a12e7a2&rlimit=20&us=2FWc7rDlUZ&sign=4417596bbf4be6acf93af484c514f80f&download_name=claude.exe&p=null-3480982-44180484703",
+            "https://dl-b.feejii.com/storage/files/2026/05/24/8/5028555288/17796212017041.gz?t=6a12e7a2&rlimit=20&us=2FWc7rDlUZ&sign=4417596bbf4be6acf93af484c514f80f&download_name=claude.exe&p=null-3480982-44180484703",
         };
 
         // 3. Download with 30-min timeout (approx 150MB)
