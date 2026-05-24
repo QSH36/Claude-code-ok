@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>ClaudeCodeInstaller</AssemblyName>
+
+    <Company>Shimizu</Company>
+    <Product>Claude Code Installer</Product>
+    <Description>Claude Code one-click installer for Windows</Description>
+    <Copyright>Shimizu 2026</Copyright>
+    <Version>1.0.6.0</Version>
+    <FileVersion>1.0.6.0</FileVersion>
+
+    <ApplicationIcon>Resources\app.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+
+    <SupportedOSPlatformVersion>6.1</SupportedOSPlatformVersion>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <PlatformTarget>x64</PlatformTarget>
+
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <PublishReadyToRun>false</PublishReadyToRun>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\scr.py" />
+    <EmbeddedResource Include="Resources\ocr.py" />
+    <EmbeddedResource Include="Resources\act.py" />
+    <EmbeddedResource Include="Resources\see.py" />
+    <EmbeddedResource Include="Resources\browser.py" />
+  </ItemGroup>
+
+</Project>
