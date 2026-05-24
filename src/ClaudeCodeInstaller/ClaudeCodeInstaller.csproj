@@ -13,8 +13,8 @@
     <Product>Claude Code Installer</Product>
     <Description>Claude Code one-click installer for Windows</Description>
     <Copyright>Shimizu 2026</Copyright>
-    <Version>1.0.6.0</Version>
-    <FileVersion>1.0.6.0</FileVersion>
+    <Version>1.0.8.0</Version>
+    <FileVersion>1.0.8.0</FileVersion>
 
     <!-- Icon + Manifest -->
     <ApplicationIcon>app.ico</ApplicationIcon>
@@ -22,6 +22,7 @@
 
     <!-- Compatibility -->
     <SupportedOSPlatformVersion>6.1</SupportedOSPlatformVersion>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <PlatformTarget>x64</PlatformTarget>
 
     <!-- Single-file: self-contained, no compression = instant startup -->
@@ -29,7 +30,7 @@
     <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-    <EnableCompressionInSingleFile>false</EnableCompressionInSingleFile>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <PublishReadyToRun>false</PublishReadyToRun>
   </PropertyGroup>
 

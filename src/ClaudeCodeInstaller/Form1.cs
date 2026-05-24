@@ -25,6 +25,8 @@ public partial class Form1 : Form
     string PipPath => Path.Combine(_drive, "Python-packages");
     bool _nodeOk, _gitOk, _pythonOk, _claudeOk, _installing;
     bool _isSimple;
+    string _cachedDrive = "";
+    bool _detecting;
 
     Panel[] _pages;
     Panel _navBar;
@@ -62,14 +64,14 @@ public partial class Form1 : Form
 
     public Form1()
     {
-        Text = "Claude Code 安装器 v1.0.6";
+        Text = "Claude Code 安装器 v1.0.8";
         Size = new Size(800, 620);
         StartPosition = FormStartPosition.CenterScreen;
         FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = false;
         Font = new Font("Microsoft YaHei UI", 9F);
         BackColor = Color.FromArgb(245, 247, 250);
         BuildWizard();
-        this.Shown += (_, _) => DetectEnv();
+        this.Shown += (_, _) => DetectEnvAsync();
     }
 
     void BuildWizard()
@@ -159,9 +161,9 @@ public partial class Form1 : Form
         p.Controls.Add(L("安装盘符:", 150, y + 3, 9, FontStyle.Bold, Color.FromArgb(60, 68, 80)));
         _cmbDrive = new ComboBox { Left = 230, Top = y, Width = 90, Font = new Font(Font.FontFamily, 11F, FontStyle.Bold), DropDownStyle = ComboBoxStyle.DropDownList };
         LoadDrives(_cmbDrive);
-        _cmbDrive.SelectedIndexChanged += (_, _) => { _drive = _cmbDrive.Text; DetectEnv(); };
+        _cmbDrive.SelectedIndexChanged += (_, _) => { _drive = _cmbDrive.Text; DetectEnvAsync(); };
         p.Controls.Add(_cmbDrive);
-        p.Controls.Add(NBtn("重新检测", 340, y, 85, 28, Color.FromArgb(70, 80, 90), (_, _) => DetectEnv()));
+        p.Controls.Add(NBtn("重新检测", 340, y, 85, 28, Color.FromArgb(70, 80, 90), (_, _) => DetectEnvAsync()));
         y += 44;
         _lblNode = AddCard(p, "Node.js", ref y); _lblGit = AddCard(p, "Git", ref y);
         _lblPython = AddCard(p, "Python", ref y); _lblClaude = AddCard(p, "Claude Code", ref y);
@@ -265,19 +267,66 @@ public partial class Form1 : Form
 
     // ═══ DETECT ═══════════════════════════════════════
     void LoadDrives(ComboBox cb) { cb.Items.Clear(); try { foreach (var d in DriveInfo.GetDrives()) if (d.IsReady && d.DriveType == DriveType.Fixed) cb.Items.Add(d.Name.TrimEnd('\\')); } catch { cb.Items.AddRange(new[] { "C:", "D:", "F:" }); } if (cb.Items.Count > 0) cb.SelectedIndex = 0; }
-    void DetectEnv()
+    async Task DetectEnvAsync()
     {
+        if (_detecting) return;
         if (_cmbDrive != null && !_isSimple) _drive = _cmbDrive.Text;
         if (_cmbDriveSimple != null && _isSimple) _drive = _cmbDriveSimple.Text;
         if (string.IsNullOrEmpty(_drive)) _drive = "C:";
-        _nodeOk = TryCmd("node", "--version", out var nv); _gitOk = TryCmd("git", "--version", out _);
-        _pythonOk = TryCmd("python", "--version", out _) || TryCmd("python3", "--version", out _);
-        _claudeOk = TryCmd("claude", "--version", out _);
-        if (!IsHandleCreated) return;
-        BeginInvoke(() => { SetStatus(_lblNode, "Node.js", _nodeOk, nv); SetStatus(_lblGit, "Git", _gitOk, ""); SetStatus(_lblPython, "Python", _pythonOk, ""); SetStatus(_lblClaude, "Claude Code", _claudeOk, ""); if (_lblPath != null) _lblPath.Text = $"路径: Node→{NodePath}  Git→{GitPath}  npm→{NpmPrefix}  Tools→{ToolsPath}"; UpdateSimplePath(); });
+        _detecting = true;
+        const int timeoutMs = 5000;
+
+        if (IsHandleCreated)
+            BeginInvoke(() => {
+                foreach (var lbl in new[] { _lblNode, _lblGit, _lblPython, _lblClaude })
+                    if (lbl != null) { lbl.Text = lbl.Text.Split(':')[0] + ": 检测中..."; lbl.ForeColor = Color.Gray; }
+            });
+
+        var tasks = new[] {
+            Task.Run(async () => { var (ok, ver) = await TryCmdAsync("node", "--version", timeoutMs); return (name: "Node.js", ok, ver); }),
+            Task.Run(async () => { var (ok, ver) = await TryCmdAsync("git", "--version", timeoutMs); return (name: "Git", ok, ver); }),
+            Task.Run(async () => { var (ok, ver) = await TryCmdAsync("python", "--version", timeoutMs); if (!ok) { var r2 = await TryCmdAsync("python3", "--version", timeoutMs); if (r2.ok) return (name: "Python", ok: true, ver: r2.ver.Trim() + " (python3)"); } return (name: "Python", ok, ver); }),
+            Task.Run(async () => { var (ok, ver) = await TryCmdAsync("claude", "--version", timeoutMs); return (name: "Claude Code", ok, ver); }),
+        };
+
+        foreach (var t in tasks)
+        {
+            _ = t.ContinueWith(t2 => {
+                if (!IsHandleCreated) return;
+                var (name, ok, ver) = t2.Result;
+                BeginInvoke(() => {
+                    switch (name) {
+                        case "Node.js": _nodeOk = ok; SetStatus(_lblNode, "Node.js", ok, ver); break;
+                        case "Git": _gitOk = ok; SetStatus(_lblGit, "Git", ok, ""); break;
+                        case "Python": _pythonOk = ok; SetStatus(_lblPython, "Python", ok, ver.Trim()); break;
+                        case "Claude Code": _claudeOk = ok; SetStatus(_lblClaude, "Claude Code", ok, ""); break;
+                    }
+                    if (_lblPath != null) _lblPath.Text = $"路径: Node→{NodePath}  Git→{GitPath}  npm→{NpmPrefix}  Tools→{ToolsPath}";
+                    UpdateSimplePath();
+                });
+            }, TaskScheduler.Default);
+        }
+
+        await Task.WhenAll(tasks);
+        _cachedDrive = _drive;
+        _detecting = false;
+    }
+
+    async Task<(bool ok, string ver)> TryCmdAsync(string cmd, string args, int timeoutMs = 5000)
+    {
+        try {
+            var psi = new ProcessStartInfo(cmd, args) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true };
+            using var p = Process.Start(psi)!;
+            var readTask = p.StandardOutput.ReadToEndAsync();
+            var cts = new CancellationTokenSource(timeoutMs);
+            try { await p.WaitForExitAsync(cts.Token); }
+            catch (OperationCanceledException) { try { p.Kill(entireProcessTree: true); } catch { } return (false, ""); }
+            var output = (await readTask + p.StandardError.ReadToEnd()).Trim();
+            return (p.ExitCode == 0 && !string.IsNullOrWhiteSpace(output), output);
+        }
+        catch { return (false, ""); }
     }
     void SetStatus(Label l, string n, bool ok, string v) { l.Text = ok ? $"{n}: 已安装 {v.Trim()}" : $"{n}: 未安装"; l.ForeColor = ok ? Color.FromArgb(0, 150, 80) : Color.FromArgb(220, 100, 40); if (l.Parent is Panel p && p.Controls.Count > 1 && p.Controls[0] is Label d) d.ForeColor = ok ? Color.FromArgb(0, 180, 80) : Color.FromArgb(240, 100, 50); }
-    bool TryCmd(string c, string a, out string o) { try { var pi = new ProcessStartInfo(c, a) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true }; var p = Process.Start(pi)!; o = p.StandardOutput.ReadToEnd() + p.StandardError.ReadToEnd(); p.WaitForExit(3000); return p.ExitCode == 0 && !string.IsNullOrWhiteSpace(o); } catch { o = ""; return false; } }
     void RefreshLocale() { _btnBack.Text = Locale.Lang == "zh" ? "← 上一步" : "< Back"; _btnNext.Text = Locale.Lang == "zh" ? "下一步 →" : "Next >"; _chkSelectAll.Text = Locale.Lang == "zh" ? "全选/取消全选" : "Select All"; }
 
     // ═══ INSTALL ══════════════════════════════════════
@@ -290,9 +339,10 @@ public partial class Form1 : Form
         var P = (Action<int, int>)((c, t) => BeginInvoke(() => { _bar.Maximum = t; _bar.Value = Math.Min(c, t); }));
 
         L("═══════════════════════════════════");
-        L($"  Claude Code Installer v1.0.6 [{( _isSimple ? "小白" : "专业" )}] | Shimizu");
+        L($"  Claude Code Installer v1.0.8 [{( _isSimple ? "小白" : "专业" )}] | Shimizu");
         L($"  Drive:{_drive}  Node:{NodePath}  Git:{GitPath}");
-        L("═══════════════════════════════════\r\n");
+        L("═══════════════════════════════════");
+        L("💡 提示: 安装过程中如弹出 UAC/权限提示窗口，请点击 [是] 以继续安装");
 
         int total = 9 + (_chkTools.Checked ? 3 : 0) + _skillChecks.Count(c => c.Checked) + ((_rbApiYes.Checked && _txtApiKey.Text.Length > 0) || (_rbApiYesSimple.Checked && _txtApiKeySimple.Text.Length > 0) ? 1 : 0) + (_chkLogic.Checked ? 1 : 0);
         int step = 0;
@@ -300,10 +350,11 @@ public partial class Form1 : Form
         try
         {
             step++; P(step, total); L($"[{step}/{total}] Node.js v20.18.0..."); if (!_nodeOk) { await DL("https://nodejs.org/dist/v20.18.0/node-v20.18.0-x64.msi", "node.msi", L); await RunAsync("msiexec", $"/i \"{Tmp("node.msi")}\" /qn INSTALLDIR=\"{NodePath}\"", L); } else L("  已安装");
-            step++; P(step, total); L($"[{step}/{total}] Git..."); if (!_gitOk) { await DL("https://github.com/git-for-windows/git/releases/download/v2.45.2.windows.1/Git-2.45.2-64-bit.exe", "git.exe", L); await RunAsync(Tmp("git.exe"), $"/VERYSILENT /NORESTART /DIR=\"{GitPath}\"", L); } else L("  已安装");
+            step++; P(step, total); L($"[{step}/{total}] Git..."); if (!_gitOk) { L("  🕐 Git 安装包约 60MB，预计需 2-5 分钟，请去喝杯咖啡吧~");
+    L("  ⚠ 安装过程中如弹出 [更改硬盘驱动器] 或 UAC 提示，请点击 [是]"); await DL("https://github.com/git-for-windows/git/releases/download/v2.45.2.windows.1/Git-2.45.2-64-bit.exe", "git.exe", L); L("  🕐 正在静默安装 Git..."); await RunAsync(Tmp("git.exe"), $"/VERYSILENT /NORESTART /DIR=\"{GitPath}\"", L); } else L("  已安装");
             step++; P(step, total); L($"[{step}/{total}] npm prefix → {NpmPrefix}"); if (!Directory.Exists(NpmPrefix)) Directory.CreateDirectory(NpmPrefix); await RunAsync("npm", $"config set prefix \"{NpmPrefix}\"", L); UpdatePath(NodePath, NpmPrefix, Path.Combine(GitPath, "cmd"));
-            step++; P(step, total); L($"[{step}/{total}] Claude Code (原生 .exe 下载)..."); await InstallClaudeNative(L);
-            step++; P(step, total); L($"[{step}/{total}] CC Switch..."); await InstallCCSwitch(L);
+            step++; P(step, total); L($"[{step}/{total}] Claude Code (原生 .exe 下载)..."); L("  🕐 下载约 150MB，预计需 3-8 分钟"); await InstallClaudeNative(L);
+            step++; P(step, total); L($"[{step}/{total}] CC Switch..."); L("  🕐 从 GitHub 下载最新版，请稍候~"); await InstallCCSwitch(L);
 
             if (_chkTools.Checked)
             {
@@ -311,10 +362,10 @@ public partial class Form1 : Form
                 step++; P(step, total); L($"[{step}/{total}] Python 依赖安装 ⚠ 需约 5-8 分钟，请耐心等待...");
                 L("  (mss + pytesseract + pyautogui + pillow + pygetwindow + playwright ≈ 200MB)");
                 await InstallPy(L);
-                step++; P(step, total); L($"[{step}/{total}] Tesseract OCR..."); await InstallTess(L);
+                step++; P(step, total); L($"[{step}/{total}] Tesseract OCR..."); L("  🕐 下载约 70MB，安装过程可能弹出 UAC 提示请点 [是]"); await InstallTess(L);
             }
 
-            foreach (var sk in _skills) { int idx = Array.FindIndex(_skills, x => x.n == sk.n); if (!_skillChecks[idx].Checked) continue; step++; P(step, total); L($"[{step}/{total}] Skill: {sk.n}..."); if (!sk.i.StartsWith("genskills--")) await RunAsync("npx", $"-y --registry=https://registry.npmmirror.com skills add {sk.i} -g", L); }
+            foreach (var sk in _skills) { int idx = Array.FindIndex(_skills, x => x.n == sk.n); if (!_skillChecks[idx].Checked) continue; step++; P(step, total); L($"[{step}/{total}] Skill: {sk.n}..."); await InstallSkillAsync(sk.i, sk.n, L); }
 
             var apiKey = _isSimple ? _txtApiKeySimple.Text.Trim() : _txtApiKey.Text.Trim();
             step++; P(step, total); L($"[{step}/{total}] 写入 .claude.json (跳过登录)..."); WriteClaudeJson(L);
@@ -393,6 +444,35 @@ public partial class Form1 : Form
     // ── Install helpers ───────────────────────────────
     async Task<string> RunAsync(string cmd, string args, Action<string> log) { try { var p = new Process { StartInfo = new ProcessStartInfo(cmd, args) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true } }; p.Start(); var oT = p.StandardOutput.ReadToEndAsync(); var eT = p.StandardError.ReadToEndAsync(); var r = await Task.WhenAll(oT, eT); await p.WaitForExitAsync(); var txt = (r[0] + r[1]).Trim(); if (txt.Length > 0) log(txt); return txt; } catch (Exception ex) { log($"[ERR] {ex.Message}"); return ""; } }
     async Task<bool> DL(string url, string fn, Action<string> log) { var path = Tmp(fn); log($"  下载: {fn}"); var urls = new List<string>(); if (url.Contains("nodejs.org/dist")) { urls.Add(url.Replace("nodejs.org/dist", "npmmirror.com/mirrors/node")); urls.Add(url.Replace("nodejs.org/dist", "mirrors.tuna.tsinghua.edu.cn/nodejs-release")); urls.Add(url.Replace("nodejs.org/dist", "mirrors.ustc.edu.cn/node")); urls.Add(url); } else if (url.Contains("github.com/git-for-windows")) { urls.Add(url.Replace("github.com/git-for-windows/git/releases/download/v2.45.2.windows.1", "npmmirror.com/mirrors/git-for-windows/v2.45.2.windows.1")); urls.Add(url.Replace("github.com", "mirror.ghproxy.com/https://github.com")); urls.Add(url); } else if (url.Contains("github.com")) { urls.Add(url.Replace("github.com", "mirror.ghproxy.com/https://github.com")); urls.Add(url.Replace("github.com", "ghproxy.net/https://github.com")); urls.Add(url.Replace("github.com", "gitclone.com/github.com")); urls.Add(url); } else if (url.Contains("python.org")) { urls.Add(url.Replace("www.python.org/ftp/python", "npmmirror.com/mirrors/python")); urls.Add(url.Replace("www.python.org/ftp/python", "mirrors.huaweicloud.com/python")); urls.Add(url.Replace("www.python.org/ftp/python", "mirrors.tuna.tsinghua.edu.cn/python")); urls.Add(url); } else { urls.Add(url); } int idx=0; foreach (var u in urls) { idx++; try { using var wc = new WebClient(); wc.Headers.Add("User-Agent", "CCI/1.0"); var lastPct = 0; wc.DownloadProgressChanged += (_, e) => { var pct = e.ProgressPercentage; if (pct > lastPct+15) { lastPct = pct; log($"    [{idx}/{urls.Count}] {pct}%"); } }; var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(15)); await wc.DownloadFileTaskAsync(new Uri(u), path).WaitAsync(cts.Token); if (File.Exists(path) && new FileInfo(path).Length > 50000) { log($"    ✓ 完成"); return true; } } catch (Exception ex) { log($"    ✗ [{idx}/{urls.Count}] {ex.Message}"); } } return false; }
+    async Task InstallSkillAsync(string skillId, string skillName, Action<string> log)
+    {
+        var registries = new[] {
+            "https://registry.npmmirror.com",
+            "https://registry.npmjs.org",
+            "https://mirrors.cloud.tencent.com/npm",
+            "https://mirrors.huaweicloud.com/repository/npm",
+        };
+        for (int ri = 0; ri < registries.Length; ri++)
+        {
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                try
+                {
+                    if (attempt > 0) { var delay = (int)Math.Pow(2, attempt) * 1000; log($"  重试 {attempt}/2, 等待 {delay / 1000}s..."); await Task.Delay(delay); }
+                    var reg = registries[ri];
+                    log($"  注册源: {new Uri(reg).Host} (尝试 {attempt + 1}/3)");
+                    var result = await RunAsync("npx", $"-y --registry={reg} skills add {skillId} -g", log);
+                    if (result.Contains("error", StringComparison.OrdinalIgnoreCase) || result.Contains("ERR!", StringComparison.OrdinalIgnoreCase)) { log($"  npx 返回错误，准备下一次尝试..."); continue; }
+                    log($"  ✓ {skillName} 安装成功");
+                    return;
+                }
+                catch (Exception ex) { log($"  尝试 {attempt + 1} 失败: {ex.Message}"); }
+            }
+            log($"  注册源 {new Uri(registries[ri]).Host} 所有重试耗尽，切换下一个...");
+        }
+        log($"  ✗ {skillName} 全部 {registries.Length} 个注册源均失败");
+    }
+
     async Task InstallClaudeNative(Action<string> log)
     {
         var targetExe = Path.Combine(ToolsPath, "claude.exe");
@@ -450,7 +530,7 @@ public partial class Form1 : Form
         UpdatePath(ToolsPath);
     }
 
-    async Task InstallCCSwitch(Action<string> log) { try { using var wc = new WebClient(); wc.Headers.Add("User-Agent", "CCI/1.0"); var json = await wc.DownloadStringTaskAsync("https://api.github.com/repos/farion1231/cc-switch/releases/latest"); using var doc = JsonDocument.Parse(json); string? dl = null; foreach (var a in doc.RootElement.GetProperty("assets").EnumerateArray()) { var n = a.GetProperty("name").GetString() ?? ""; if (n.EndsWith(".msi")) { dl = a.GetProperty("browser_download_url").GetString(); break; } if (n.EndsWith(".exe") && dl == null) dl = a.GetProperty("browser_download_url").GetString(); } if (dl == null) return; var ext = Path.GetExtension(dl); var p = Tmp($"ccswitch{ext}"); if (await DL(dl, $"ccswitch{ext}", log)) { if (ext == ".msi") await RunAsync("msiexec", $"/i \"{p}\" /qn", log); else await RunAsync(p, "/VERYSILENT", log); } } catch { } }
+    async Task InstallCCSwitch(Action<string> log) { string? dl = null; try { using var wc = new WebClient(); wc.Headers.Add("User-Agent", "CCI/1.0"); var json = await wc.DownloadStringTaskAsync("https://api.github.com/repos/farion1231/cc-switch/releases/latest"); using var doc = JsonDocument.Parse(json); foreach (var a in doc.RootElement.GetProperty("assets").EnumerateArray()) { var n = a.GetProperty("name").GetString() ?? ""; if (n.EndsWith(".msi")) { dl = a.GetProperty("browser_download_url").GetString(); break; } if (n.EndsWith(".exe") && dl == null) dl = a.GetProperty("browser_download_url").GetString(); } } catch { log("  GitHub API 不可达，使用备用源..."); } if (dl == null) { dl = "https://www.axwsd.cn/cc/1.msi"; log("  备用源: axwsd.cn"); } else { log("  GitHub: " + dl); } try { var ext = Path.GetExtension(dl); var p = Tmp($"ccswitch{ext}"); if (await DL(dl, $"ccswitch{ext}", log)) { if (ext == ".msi") await RunAsync("msiexec", $"/i \"{p}\" /qn", log); else await RunAsync(p, "/VERYSILENT", log); } } catch { } }
     void InstallTools(Action<string> log) { Directory.CreateDirectory(ToolsPath); var asm = System.Reflection.Assembly.GetExecutingAssembly(); foreach (var name in new[] { "scr.py", "ocr.py", "act.py", "see.py", "browser.py" }) { var rn = asm.GetManifestResourceNames().FirstOrDefault(r => r.EndsWith(name)); if (rn == null) continue; using var s = asm.GetManifestResourceStream(rn); if (s == null) continue; using var sr = new StreamReader(s, Encoding.UTF8); File.WriteAllText(Path.Combine(ToolsPath, name), sr.ReadToEnd(), Encoding.UTF8); } log("  截图工具已安装"); }
     async Task InstallPy(Action<string> log) { if (!_pythonOk) { await DL("https://www.python.org/ftp/python/3.12.4/python-3.12.4-amd64.exe", "python.exe", log); var dir = Path.Combine(_drive, "Python312"); await RunAsync(Tmp("python.exe"), $"/quiet InstallAllUsers=1 TargetDir=\"{dir}\" Include_pip=1 Include_test=0", log); _pythonPath = Path.Combine(dir, "python.exe"); _pythonOk = true; } if (_pythonOk) await RunAsync(_pythonPath, $"-m pip install --target \"{PipPath}\" -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn mss pytesseract pyautogui pillow pygetwindow playwright", log); }
     async Task InstallTess(Action<string> log) { if (await DL("https://github.com/UB-Mannheim/tesseract/releases/download/v5.3.3.20231005/tesseract-ocr-w64-setup-5.3.3.20231005.exe", "tesseract.exe", log)) await RunAsync(Tmp("tesseract.exe"), $"/S /D={Path.Combine(_drive, "Tesseract-OCR")}", log); }
