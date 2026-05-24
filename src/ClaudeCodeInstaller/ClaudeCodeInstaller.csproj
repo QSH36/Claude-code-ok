@@ -13,8 +13,8 @@
     <Product>Claude Code Installer</Product>
     <Description>Claude Code one-click installer for Windows</Description>
     <Copyright>Shimizu 2026</Copyright>
-    <Version>1.0.8.0</Version>
-    <FileVersion>1.0.8.0</FileVersion>
+    <Version>1.0.5.0</Version>
+    <FileVersion>1.0.5.0</FileVersion>
 
     <!-- Icon + Manifest -->
     <ApplicationIcon>app.ico</ApplicationIcon>

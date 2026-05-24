@@ -1,0 +1,46 @@
+<h2>V17 UI 设计方向</h2>
+<p class="subtitle">当前 UI 过于简陋 — 下面是 3 个设计方向。功能完全不变，只改外观。</p>
+
+<p style="margin-top:16px;color:#888;font-size:13px;"><strong>当前 V16:</strong> 纯 WinForms 原生控件，灰白背景，无视觉层次</p>
+<div class="mockup" style="margin-bottom:24px;">
+  <div class="mockup-header">V16 当前 — 欢迎页</div>
+  <div class="mockup-body">
+    <div style="background:#F5F7FA;padding:20px;border:1px solid #ddd;font-family:'Microsoft YaHei UI',sans-serif;">
+      <div style="font-size:15px;font-weight:bold;color:#1E2837;margin-bottom:6px;">欢迎使用 Claude Code 安装器</div>
+      <div style="font-size:10px;color:#646E7D;margin-bottom:20px;">请选择你的使用方式</div>
+      <div style="display:flex;gap:16px;">
+        <div style="flex:1;background:#0078D4;color:#fff;padding:20px;text-align:center;font-size:12px;font-weight:bold;">我是专业用户<br><span style="font-size:9px;font-weight:normal;opacity:.8;">逐步选择安装选项</span></div>
+        <div style="flex:1;background:#00AA50;color:#fff;padding:20px;text-align:center;font-size:12px;font-weight:bold;">我是小白用户<br><span style="font-size:9px;font-weight:normal;opacity:.8;">简易安装 · 快速配置</span></div>
+      </div>
+      <div style="margin-top:30px;padding:10px;background:#FAFBFC;border:1px solid #e8eaed;">
+        <div style="font-size:9px;color:#888;">● Node.js &nbsp;&nbsp; ● Git &nbsp;&nbsp; ● Python &nbsp;&nbsp; ● Claude Code</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p style="color:#aaa;font-size:12px;margin-bottom:20px;">选择一个方向，我会展示更多页面效果。</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Shimizu Brand — 渐变现代风</h3>
+      <p>蓝色渐变背景头部，白色卡片式内容区，圆角面板，品牌色贯穿。适合 Shimizu 品牌形象。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Apple 极简 — 大量留白</h3>
+      <p>极简白色背景，超大标题，细线条分割，最小化色彩。像 iPhone 设置页面。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Material 卡片 — 层次分明</h3>
+      <p>浅灰色背景上悬浮白色卡片，清晰的层次结构，彩色图标点缀。类似 VS Code 安装器风格。</p>
+    </div>
+  </div>
+</div>

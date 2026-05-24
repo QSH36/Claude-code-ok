@@ -28,6 +28,50 @@ public partial class Form1 : Form
     string _cachedDrive = "";
     bool _detecting;
 
+    // ── V17 Brand Colors ────────────────────────────
+    static readonly Color BrandBlue     = Color.FromArgb(0, 82, 217);
+    static readonly Color BrandBlueEnd  = Color.FromArgb(79, 172, 254);
+    static readonly Color SuccessGreen  = Color.FromArgb(0, 170, 80);
+    static readonly Color WarnOrange    = Color.FromArgb(249, 115, 22);
+    static readonly Color CardBg        = Color.FromArgb(250, 251, 253);
+    static readonly Color TextDark      = Color.FromArgb(26, 26, 46);
+    static readonly Color TextGray      = Color.FromArgb(100, 110, 130);
+    static readonly Color BorderLight   = Color.FromArgb(225, 230, 240);
+
+    // ── V17 Styled Control Builders ──────────────────
+    Panel Banner(string stepNum, string title)
+    {
+        var b = new Panel { Width = 760, Height = 52, Margin = new Padding(0) };
+        b.Paint += (_, e) => {
+            using var br = new System.Drawing.Drawing2D.LinearGradientBrush(
+                new Rectangle(0, 0, b.Width, b.Height), BrandBlue, BrandBlueEnd, 135f);
+            e.Graphics.FillRectangle(br, new Rectangle(0, 0, b.Width, b.Height));
+        };
+        if (stepNum != "") {
+            var badge = new Label { Text = stepNum, Left = 24, Top = 12, Width = 28, Height = 28,
+                TextAlign = ContentAlignment.MiddleCenter, Font = new Font(Font.FontFamily, 11f, FontStyle.Bold),
+                ForeColor = Color.White, BackColor = Color.FromArgb(40, 255, 255, 255) };
+            b.Controls.Add(badge);
+            b.Controls.Add(new Label { Text = title, Left = 62, Top = 14, AutoSize = true,
+                Font = new Font(Font.FontFamily, 13f, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.Transparent });
+        } else {
+            b.Controls.Add(new Label { Text = title, Left = 24, Top = 14, AutoSize = true,
+                Font = new Font(Font.FontFamily, 13f, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.Transparent });
+        }
+        return b;
+    }
+
+    Button AccentBtn(string text, int x, int y, int w, int h, Color bg, EventHandler cb)
+    {
+        var btn = new Button { Text = text, Left = x, Top = y, Width = w, Height = h, FlatStyle = FlatStyle.Flat,
+            BackColor = bg, ForeColor = Color.White, Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold),
+            UseVisualStyleBackColor = false, Cursor = Cursors.Hand };
+        btn.Click += cb; return btn;
+    }
+
+    Label StyledLabel(string text, int x, int y, float sz, FontStyle fs, Color c) =>
+        new() { Text = text, Location = new Point(x, y), AutoSize = true, Font = new Font(Font.FontFamily, sz, fs), ForeColor = c };
+
     Panel[] _pages;
     Panel _navBar;
     Button _btnBack, _btnNext;
@@ -64,22 +108,28 @@ public partial class Form1 : Form
 
     public Form1()
     {
-        Text = "Claude Code 安装器 v1.0.8";
+        Text = "Claude Code 安装器 v1.0.5";
         Size = new Size(800, 620);
         StartPosition = FormStartPosition.CenterScreen;
         FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = false;
         Font = new Font("Microsoft YaHei UI", 9F);
         BackColor = Color.FromArgb(245, 247, 250);
+        this.Paint += (_, e) => { e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias; };
         BuildWizard();
         this.Shown += (_, _) => DetectEnvAsync();
     }
 
     void BuildWizard()
     {
-        _navBar = new Panel { Dock = DockStyle.Bottom, Height = 50, BackColor = Color.FromArgb(248, 250, 253) };
-        _btnBack = new Button { Text = "← 上一步", Left = 16, Top = 8, Width = 90, Height = 32, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(140, 145, 155), ForeColor = Color.White, Font = new Font(Font.FontFamily, 9F, FontStyle.Bold), UseVisualStyleBackColor = false };
+        _navBar = new Panel { Dock = DockStyle.Bottom, Height = 52, BackColor = Color.FromArgb(30, 35, 45) };
+        _navBar.Paint += (_, e) => {
+            using var br = new System.Drawing.Drawing2D.LinearGradientBrush(
+                new Rectangle(0, 0, _navBar.Width, _navBar.Height), Color.FromArgb(30, 35, 48), Color.FromArgb(22, 26, 36), 90f);
+            e.Graphics.FillRectangle(br, new Rectangle(0, 0, _navBar.Width, _navBar.Height));
+        };
+        _btnBack = new Button { Text = "← 上一步", Left = 16, Top = 10, Width = 95, Height = 32, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(255, 255, 255, 25), ForeColor = Color.White, Font = new Font(Font.FontFamily, 9F, FontStyle.Bold), UseVisualStyleBackColor = false, Cursor = Cursors.Hand };
         _btnBack.Click += (s, e) => OnBack(s, e);
-        _btnNext = new Button { Text = "下一步 →", Left = 114, Top = 8, Width = 105, Height = 32, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(0, 120, 212), ForeColor = Color.White, Font = new Font(Font.FontFamily, 9F, FontStyle.Bold), UseVisualStyleBackColor = false };
+        _btnNext = new Button { Text = "下一步 →", Left = 120, Top = 10, Width = 110, Height = 32, FlatStyle = FlatStyle.Flat, BackColor = BrandBlue, ForeColor = Color.White, Font = new Font(Font.FontFamily, 9F, FontStyle.Bold), UseVisualStyleBackColor = false, Cursor = Cursors.Hand };
         _btnNext.Click += (s, e) => OnNext(s, e);
         _navBar.Controls.Add(_btnBack); _navBar.Controls.Add(_btnNext);
         Controls.Add(_navBar);
@@ -138,112 +188,199 @@ public partial class Form1 : Form
     Panel BuildPage0()
     {
         var p = new Panel();
-        p.Controls.Add(L("欢迎使用 Claude Code 安装器", 0, 40, 16, FontStyle.Bold, Color.FromArgb(30, 40, 55)));
-        p.Controls.Add(L("请选择你的使用方式", 0, 85, 11, FontStyle.Regular, Color.FromArgb(100, 110, 125)));
-        var bPro = new Button { Text = "我是专业用户\r\n逐步选择安装选项", Left = 50, Top = 150, Width = 300, Height = 110, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(0, 120, 212), ForeColor = Color.White, Font = new Font(Font.FontFamily, 13F, FontStyle.Bold), UseVisualStyleBackColor = false, Cursor = Cursors.Hand };
-        bPro.Click += (_, _) => { _isSimple = false; ShowPage(1); };
-        p.Controls.Add(bPro); p.Controls.Add(L("逐步选择 Skills、工具、安全模式、API 配置", 50, 275, 8, FontStyle.Regular, Color.FromArgb(140, 150, 165)));
-        var bSimple = new Button { Text = "我是小白用户\r\n简易安装 · 快速配置", Left = 410, Top = 150, Width = 300, Height = 110, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(0, 170, 80), ForeColor = Color.White, Font = new Font(Font.FontFamily, 13F, FontStyle.Bold), UseVisualStyleBackColor = false, Cursor = Cursors.Hand };
-        bSimple.Click += (_, _) => { _isSimple = true; ShowPage(6); };
-        p.Controls.Add(bSimple); p.Controls.Add(L("选择安装位置 → API 配置 → 一键安装", 410, 275, 8, FontStyle.Regular, Color.FromArgb(140, 150, 165)));
+        var banner = new Panel { Left = 0, Top = 0, Width = 760, Height = 180, Margin = new Padding(0) };
+        banner.Paint += (_, e) => {
+            using var br = new System.Drawing.Drawing2D.LinearGradientBrush(
+                new Rectangle(0, 0, banner.Width, banner.Height), BrandBlue, BrandBlueEnd, 135f);
+            e.Graphics.FillRectangle(br, new Rectangle(0, 0, banner.Width, banner.Height));
+        };
+        var lblBrand = StyledLabel("SHIMIZU", 0, 32, 10f, FontStyle.Regular, Color.FromArgb(128, 255, 255, 255)); lblBrand.TextAlign = ContentAlignment.MiddleCenter; lblBrand.Width = 760; banner.Controls.Add(lblBrand);
+        var lblTitle = StyledLabel("Claude Code 安装器", 0, 62, 20f, FontStyle.Bold, Color.White); lblTitle.TextAlign = ContentAlignment.MiddleCenter; lblTitle.Width = 760; banner.Controls.Add(lblTitle);
+        var lblSubtitle = StyledLabel("一键安装 · 永久免费", 0, 100, 11f, FontStyle.Regular, Color.FromArgb(180, 255, 255, 255)); lblSubtitle.TextAlign = ContentAlignment.MiddleCenter; lblSubtitle.Width = 760; banner.Controls.Add(lblSubtitle);
+        var lblVer = StyledLabel("v1.0.5", 0, 138, 9f, FontStyle.Regular, Color.FromArgb(120, 255, 255, 255)); lblVer.TextAlign = ContentAlignment.MiddleCenter; lblVer.Width = 760; banner.Controls.Add(lblVer);
+        p.Controls.Add(banner);
+
+        p.Controls.Add(StyledLabel("选择安装方式", 20, 200, 13f, FontStyle.Bold, TextDark));
+
+        var cardPro = new Panel { Left = 20, Top = 236, Width = 350, Height = 72, BackColor = Color.FromArgb(240, 244, 255), Cursor = Cursors.Hand };
+        cardPro.Paint += (_, e) => { using var b = new SolidBrush(BrandBlue); e.Graphics.FillRectangle(b, 0, 0, 4, cardPro.Height); };
+        cardPro.Click += (_, _) => { _isSimple = false; ShowPage(1); };
+        cardPro.Controls.Add(StyledLabel("我是专业用户", 20, 14, 13f, FontStyle.Bold, BrandBlue));
+        cardPro.Controls.Add(StyledLabel("逐步选择 Skills、安全模式、API 配置", 20, 38, 9f, FontStyle.Regular, TextGray));
+        p.Controls.Add(cardPro);
+
+        var cardSimple = new Panel { Left = 400, Top = 236, Width = 350, Height = 72, BackColor = Color.FromArgb(237, 255, 245), Cursor = Cursors.Hand };
+        cardSimple.Paint += (_, e) => { using var b = new SolidBrush(SuccessGreen); e.Graphics.FillRectangle(b, 0, 0, 4, cardSimple.Height); };
+        cardSimple.Click += (_, _) => { _isSimple = true; ShowPage(6); };
+        cardSimple.Controls.Add(StyledLabel("我是小白用户", 20, 14, 13f, FontStyle.Bold, SuccessGreen));
+        cardSimple.Controls.Add(StyledLabel("简易安装 · 快速配置", 20, 38, 9f, FontStyle.Regular, TextGray));
+        p.Controls.Add(cardSimple);
+
+        p.Controls.Add(StyledLabel("专业模式：完整控制安装过程 | 小白模式：选择盘符 + API 一键到底", 20, 320, 8f, FontStyle.Regular, Color.FromArgb(150, 160, 175)));
         return p;
     }
 
     // ═══ PAGE 1: 环境 ═════════════════════════════════
     Panel BuildPage1()
     {
-        var p = new Panel(); int y = 8;
-        p.Controls.Add(L("语言:", 0, y + 3, 9, FontStyle.Bold, Color.FromArgb(60, 68, 80)));
-        _cmbLang = new ComboBox { Left = 50, Top = y, Width = 80, DropDownStyle = ComboBoxStyle.DropDownList };
+        var p = new Panel();
+        p.Controls.Add(Banner("1", "环境检测"));
+
+        int y = 64;
+        p.Controls.Add(StyledLabel("语言:", 4, y + 5, 9f, FontStyle.Bold, TextDark));
+        _cmbLang = new ComboBox { Left = 55, Top = y, Width = 80, DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, Font = new Font(Font.FontFamily, 9f) };
         _cmbLang.Items.AddRange(new[] { "中文", "English" }); _cmbLang.SelectedIndex = 0;
         _cmbLang.SelectedIndexChanged += (_, _) => { Locale.Lang = _cmbLang.Text == "English" ? "en" : "zh"; RefreshLocale(); };
         p.Controls.Add(_cmbLang);
-        p.Controls.Add(L("安装盘符:", 150, y + 3, 9, FontStyle.Bold, Color.FromArgb(60, 68, 80)));
-        _cmbDrive = new ComboBox { Left = 230, Top = y, Width = 90, Font = new Font(Font.FontFamily, 11F, FontStyle.Bold), DropDownStyle = ComboBoxStyle.DropDownList };
+
+        p.Controls.Add(StyledLabel("安装盘符:", 155, y + 5, 9f, FontStyle.Bold, TextDark));
+        _cmbDrive = new ComboBox { Left = 235, Top = y, Width = 80, Font = new Font(Font.FontFamily, 11F, FontStyle.Bold), DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(240, 244, 255), ForeColor = BrandBlue };
         LoadDrives(_cmbDrive);
         _cmbDrive.SelectedIndexChanged += (_, _) => { _drive = _cmbDrive.Text; DetectEnvAsync(); };
         p.Controls.Add(_cmbDrive);
-        p.Controls.Add(NBtn("重新检测", 340, y, 85, 28, Color.FromArgb(70, 80, 90), (_, _) => DetectEnvAsync()));
+
+        var btnReDetect = new Button { Text = "重新检测", Left = 330, Top = y, Width = 90, Height = 28, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(80, 90, 110), ForeColor = Color.White, Font = new Font(Font.FontFamily, 9F, FontStyle.Bold), UseVisualStyleBackColor = false, Cursor = Cursors.Hand };
+        btnReDetect.Click += (_, _) => DetectEnvAsync();
+        p.Controls.Add(btnReDetect);
+
         y += 44;
-        _lblNode = AddCard(p, "Node.js", ref y); _lblGit = AddCard(p, "Git", ref y);
-        _lblPython = AddCard(p, "Python", ref y); _lblClaude = AddCard(p, "Claude Code", ref y);
-        _lblPath = L("", 0, y + 4, 8, FontStyle.Regular, Color.FromArgb(140, 150, 165)); _lblPath.MaximumSize = new Size(740, 36); p.Controls.Add(_lblPath);
+        _lblNode = AddStatusCard(p, "Node.js", ref y); _lblGit = AddStatusCard(p, "Git", ref y);
+        _lblPython = AddStatusCard(p, "Python", ref y); _lblClaude = AddStatusCard(p, "Claude Code", ref y);
+        _lblPath = StyledLabel("", 4, y + 6, 8f, FontStyle.Regular, TextGray); _lblPath.MaximumSize = new Size(750, 36); p.Controls.Add(_lblPath);
         return p;
     }
 
-    Label AddCard(Panel p, string title, ref int y)
+    Label AddStatusCard(Panel p, string title, ref int y)
     {
-        var c = new Panel { Left = 0, Top = y, Width = 740, Height = 40, BackColor = Color.FromArgb(250, 252, 254) };
-        c.Controls.Add(L("●", 12, 10, 8, FontStyle.Regular, Color.FromArgb(190, 200, 210))); c.Controls.Add(L(title, 34, 9, 10, FontStyle.Bold, Color.FromArgb(50, 55, 65)));
-        var s = L("检测中...", 180, 11, 9, FontStyle.Regular, Color.Gray); c.Controls.Add(s); p.Controls.Add(c); y += 44; return s;
+        var card = new Panel { Left = 0, Top = y, Width = 750, Height = 42, BackColor = CardBg };
+        card.Paint += (_, e) => { using var br = new SolidBrush(BorderLight); e.Graphics.FillRectangle(br, 0, 0, 3, card.Height); };
+        var dot = new Label { Text = "●", Left = 16, Top = 10, AutoSize = true, Font = new Font(Font.FontFamily, 8f), ForeColor = Color.FromArgb(190, 200, 210) };
+        card.Controls.Add(dot);
+        card.Controls.Add(StyledLabel(title, 34, 10, 10f, FontStyle.Bold, Color.FromArgb(50, 55, 65)));
+        var status = StyledLabel("检测中...", 160, 12, 9f, FontStyle.Regular, Color.Gray);
+        card.Controls.Add(status); p.Controls.Add(card); y += 48;
+        return status;
     }
 
     // ═══ PAGE 2-5 unchanged ═══════════════════════════
     Panel BuildPage2()
     {
         var p = new Panel();
-        _chkSelectAll = new CheckBox { Text = "全选/取消全选", Left = 0, Top = 0, AutoSize = true, Font = new Font(Font.FontFamily, 9F, FontStyle.Bold), ForeColor = Color.FromArgb(0, 100, 200) };
+        p.Controls.Add(Banner("2", "Skills"));
+
+        _chkSelectAll = new CheckBox { Text = "全选 / 取消全选", Left = 4, Top = 62, AutoSize = true, Font = new Font(Font.FontFamily, 9.5F, FontStyle.Bold), ForeColor = BrandBlue };
         _chkSelectAll.CheckedChanged += (_, _) => { bool a = _chkSelectAll.Checked; foreach (var c in _skillChecks) c.Checked = a; };
         p.Controls.Add(_chkSelectAll);
-        var pl = new FlowLayoutPanel { Left = 0, Top = 28, Width = 740, Height = 470, AutoScroll = true, FlowDirection = FlowDirection.TopDown, WrapContents = false };
+
+        var pl = new FlowLayoutPanel { Left = 4, Top = 92, Width = 750, Height = 440, AutoScroll = true, FlowDirection = FlowDirection.TopDown, WrapContents = false };
         _skillChecks = new CheckBox[_skills.Length];
-        for (int i = 0; i < _skills.Length; i++) { var sk = _skills[i]; var r = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, AutoSize = true, Margin = new Padding(0, 2, 0, 2) }; var cb = new CheckBox { Text = sk.n, Checked = true, AutoSize = true, Font = new Font(Font.FontFamily, 9.5F, FontStyle.Bold), Padding = new Padding(4, 3, 0, 0) }; r.Controls.Add(cb); r.Controls.Add(L(sk.d, 4, 0, 8.5F, FontStyle.Regular, Color.FromArgb(130, 140, 155))); _skillChecks[i] = cb; pl.Controls.Add(r); }
+        for (int i = 0; i < _skills.Length; i++) {
+            var sk = _skills[i];
+            var row = new Panel { Width = 730, Height = 44, Margin = new Padding(0, 2, 0, 2), BackColor = sk.i.StartsWith("genskills--") ? Color.FromArgb(248, 248, 250) : CardBg, Cursor = Cursors.Hand };
+            row.Paint += (_, e) => { if (!sk.i.StartsWith("genskills--")) using (var br = new SolidBrush(BrandBlue)) e.Graphics.FillRectangle(br, 0, 0, 3, row.Height); };
+            var cb = new CheckBox { Text = sk.n, Checked = !sk.i.StartsWith("genskills--"), Left = 16, Top = 10, AutoSize = true, Font = new Font(Font.FontFamily, 10F, FontStyle.Bold), Enabled = !sk.i.StartsWith("genskills--") };
+            row.Controls.Add(cb);
+            row.Controls.Add(StyledLabel(sk.d, 20, 26, 8f, FontStyle.Regular, sk.i.StartsWith("genskills--") ? Color.FromArgb(180,185,195) : TextGray));
+            cb.Click += (_, _) => { if (sk.i.StartsWith("genskills--")) cb.Checked = false; };
+            _skillChecks[i] = cb; pl.Controls.Add(row);
+        }
         p.Controls.Add(pl); return p;
     }
     Panel BuildPage3()
     {
         var p = new Panel();
-        _chkTools = new CheckBox { Text = "安装截图操作工具 (Python: scr, ocr, see, act, browser)", Left = 0, Top = 8, Checked = true, AutoSize = true, Font = new Font(Font.FontFamily, 9.5F, FontStyle.Bold) };
-        p.Controls.Add(_chkTools); p.Controls.Add(L("需要 Python + Tesseract OCR。包含屏幕截图、OCR、鼠标键盘、浏览器自动化。", 24, 32, 8, FontStyle.Regular, Color.FromArgb(130, 140, 155)));
-        _chkLogic = new CheckBox { Text = "添加截图辅助逻辑 (写入 CLAUDE.md)", Left = 0, Top = 84, Checked = true, AutoSize = true, Font = new Font(Font.FontFamily, 9.5F, FontStyle.Bold) };
+        p.Controls.Add(Banner("3", "工具与逻辑"));
+        int y = 64;
+
+        _chkTools = new CheckBox { Text = "安装截图操作工具 (Python: scr, ocr, see, act, browser)", Left = 4, Top = y, Checked = true, AutoSize = true, Font = new Font(Font.FontFamily, 10F, FontStyle.Bold), ForeColor = TextDark };
+        p.Controls.Add(_chkTools);
+        p.Controls.Add(StyledLabel("需要 Python + Tesseract OCR。包含屏幕截图、OCR、鼠标键盘、浏览器自动化。", 28, y + 26, 8.5f, FontStyle.Regular, TextGray));
+
+        y += 76;
+        _chkLogic = new CheckBox { Text = "添加截图辅助逻辑 (写入 CLAUDE.md)", Left = 4, Top = y, Checked = true, AutoSize = true, Font = new Font(Font.FontFamily, 10F, FontStyle.Bold), ForeColor = TextDark };
         p.Controls.Add(_chkLogic);
-        _txtLogic = new TextBox { Left = 24, Top = 114, Width = 700, Height = 55, Multiline = true, ReadOnly = true, BackColor = Color.FromArgb(248, 250, 253), BorderStyle = BorderStyle.FixedSingle, Font = new Font("Consolas", 8.5F), Text = "当用户请求不清晰时，主动询问是否需要截图查看。优先于猜测行为。" };
-        p.Controls.Add(_txtLogic); return p;
+        _txtLogic = new TextBox { Left = 28, Top = y + 30, Width = 720, Height = 55, Multiline = true, ReadOnly = true, BackColor = Color.FromArgb(248, 250, 253), BorderStyle = BorderStyle.FixedSingle, Font = new Font("Consolas", 8.5F), Text = "当用户请求不清晰时，主动询问是否需要截图查看。优先于猜测行为。" };
+        p.Controls.Add(_txtLogic);
+        return p;
     }
     Panel BuildPage4()
     {
         var p = new Panel();
-        _rbSafe = new RadioButton { Text = "安全模式 — 高威胁操作需要用户确认", Left = 4, Top = 12, AutoSize = true, Font = new Font(Font.FontFamily, 9.5F, FontStyle.Bold) };
-        _rbPro = new RadioButton { Text = "专业通行模式 — 所有操作无需确认 (推荐)", Left = 4, Top = 44, AutoSize = true, Font = new Font(Font.FontFamily, 9.5F, FontStyle.Bold), Checked = true };
-        p.Controls.Add(_rbSafe); p.Controls.Add(_rbPro); return p;
+        p.Controls.Add(Banner("4", "安全模式"));
+        int y = 64;
+
+        var cardSafe = new Panel { Left = 4, Top = y, Width = 360, Height = 64, BackColor = CardBg, Cursor = Cursors.Hand };
+        cardSafe.Paint += (_, e) => { using var b = new SolidBrush(WarnOrange); e.Graphics.FillRectangle(b, 0, 0, 4, cardSafe.Height); };
+        _rbSafe = new RadioButton { Text = "安全模式", Left = 20, Top = 8, AutoSize = true, Font = new Font(Font.FontFamily, 10.5F, FontStyle.Bold), ForeColor = TextDark };
+        cardSafe.Controls.Add(_rbSafe);
+        cardSafe.Controls.Add(StyledLabel("高威胁操作需要用户确认", 20, 34, 8f, FontStyle.Regular, TextGray));
+        cardSafe.Click += (_, _) => _rbSafe.Checked = true; p.Controls.Add(cardSafe);
+
+        y += 76;
+        var cardPro = new Panel { Left = 4, Top = y, Width = 360, Height = 64, BackColor = Color.FromArgb(240, 253, 244), Cursor = Cursors.Hand };
+        cardPro.Paint += (_, e) => { using var b = new SolidBrush(SuccessGreen); e.Graphics.FillRectangle(b, 0, 0, 4, cardPro.Height); };
+        _rbPro = new RadioButton { Text = "专业通行模式 (推荐)", Left = 20, Top = 8, AutoSize = true, Font = new Font(Font.FontFamily, 10.5F, FontStyle.Bold), ForeColor = TextDark, Checked = true };
+        cardPro.Controls.Add(_rbPro);
+        cardPro.Controls.Add(StyledLabel("所有操作无需确认 — 适合高级用户", 20, 34, 8f, FontStyle.Regular, TextGray));
+        cardPro.Click += (_, _) => _rbPro.Checked = true; p.Controls.Add(cardPro);
+        return p;
     }
     Panel BuildPage5()
     {
         var p = new Panel();
-        _rbApiNo = new RadioButton { Text = "使用默认 Anthropic API", Left = 4, Top = 12, AutoSize = true, Font = new Font(Font.FontFamily, 9.5F, FontStyle.Bold), Checked = true };
-        _rbApiYes = new RadioButton { Text = "切换到 DeepSeek (deepseek-v4-pro[1m])", Left = 4, Top = 44, AutoSize = true, Font = new Font(Font.FontFamily, 9.5F, FontStyle.Bold) };
-        _rbApiYes.CheckedChanged += (_, _) => _txtApiKey.Enabled = _rbApiYes.Checked; p.Controls.Add(_rbApiNo); p.Controls.Add(_rbApiYes);
-        p.Controls.Add(L("API Key:", 24, 78, 9, FontStyle.Bold, Color.FromArgb(60, 68, 80))); _txtApiKey = new TextBox { Left = 100, Top = 75, Width = 400, PasswordChar = '*', Enabled = false }; p.Controls.Add(_txtApiKey);
-        p.Controls.Add(L("预设: deepseek-v4-pro[1m] (4个模型槽位全部预填)", 24, 104, 8, FontStyle.Regular, Color.FromArgb(130, 140, 155))); return p;
+        p.Controls.Add(Banner("5", "API 配置"));
+        int y = 64;
+
+        var cardDefault = new Panel { Left = 4, Top = y, Width = 360, Height = 52, BackColor = CardBg, Cursor = Cursors.Hand };
+        cardDefault.Paint += (_, e) => { using var b = new SolidBrush(BrandBlue); e.Graphics.FillRectangle(b, 0, 0, 4, cardDefault.Height); };
+        _rbApiNo = new RadioButton { Text = "默认 Anthropic API", Left = 20, Top = 14, AutoSize = true, Font = new Font(Font.FontFamily, 10F, FontStyle.Bold), ForeColor = TextDark, Checked = true };
+        cardDefault.Controls.Add(_rbApiNo);
+        cardDefault.Click += (_, _) => _rbApiNo.Checked = true; p.Controls.Add(cardDefault);
+
+        y += 64;
+        var cardDS = new Panel { Left = 4, Top = y, Width = 360, Height = 52, BackColor = CardBg, Cursor = Cursors.Hand };
+        cardDS.Paint += (_, e) => { using var b = new SolidBrush(Color.FromArgb(175, 82, 222)); e.Graphics.FillRectangle(b, 0, 0, 4, cardDS.Height); };
+        _rbApiYes = new RadioButton { Text = "DeepSeek (deepseek-v4-pro[1m])", Left = 20, Top = 14, AutoSize = true, Font = new Font(Font.FontFamily, 10F, FontStyle.Bold), ForeColor = TextDark };
+        _rbApiYes.CheckedChanged += (_, _) => _txtApiKey.Enabled = _rbApiYes.Checked;
+        cardDS.Controls.Add(_rbApiYes);
+        cardDS.Click += (_, _) => _rbApiYes.Checked = true; p.Controls.Add(cardDS);
+
+        y += 68;
+        p.Controls.Add(StyledLabel("API Key:", 8, y + 5, 9f, FontStyle.Bold, TextDark));
+        _txtApiKey = new TextBox { Left = 80, Top = y, Width = 420, PasswordChar = '*', Enabled = false, BackColor = Color.FromArgb(248, 250, 253), BorderStyle = BorderStyle.FixedSingle, Font = new Font(Font.FontFamily, 10f) };
+        p.Controls.Add(_txtApiKey);
+        p.Controls.Add(StyledLabel("预设: deepseek-v4-pro[1m] (4个模型槽位全部预填, subagent 用 v4-flash)", 80, y + 30, 8f, FontStyle.Regular, TextGray));
+        return p;
     }
 
     // ═══ PAGE 6: 小白 API + 盘符 ══════════════════════
     Panel BuildPageSimpleApi()
     {
         var p = new Panel();
-        p.Controls.Add(L("安装配置", 0, 8, 14, FontStyle.Bold, Color.FromArgb(30, 40, 55)));
+        p.Controls.Add(Banner("", "安装配置"));
+        int y = 64;
 
-        // Drive
-        p.Controls.Add(L("安装盘符:", 0, 52, 10, FontStyle.Bold, Color.FromArgb(60, 68, 80)));
-        _cmbDriveSimple = new ComboBox { Left = 90, Top = 48, Width = 90, Font = new Font(Font.FontFamily, 12F, FontStyle.Bold), DropDownStyle = ComboBoxStyle.DropDownList };
+        p.Controls.Add(StyledLabel("安装盘符:", 4, y + 5, 10f, FontStyle.Bold, TextDark));
+        _cmbDriveSimple = new ComboBox { Left = 90, Top = y, Width = 90, Font = new Font(Font.FontFamily, 12F, FontStyle.Bold), DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(240, 244, 255), ForeColor = BrandBlue };
         LoadDrives(_cmbDriveSimple);
         _cmbDriveSimple.SelectedIndexChanged += (_, _) => { _drive = _cmbDriveSimple.Text; UpdateSimplePath(); };
         p.Controls.Add(_cmbDriveSimple);
-        _lblSimplePath = L("", 190, 52, 8, FontStyle.Regular, Color.FromArgb(120, 140, 155)); p.Controls.Add(_lblSimplePath);
+        _lblSimplePath = StyledLabel("", 195, y + 3, 8f, FontStyle.Regular, TextGray); p.Controls.Add(_lblSimplePath);
 
-        // API
-        p.Controls.Add(L("API 提供商:", 0, 100, 10, FontStyle.Bold, Color.FromArgb(60, 68, 80)));
-        _rbApiNoSimple = new RadioButton { Text = "默认 Anthropic API（无需配置）", Left = 4, Top = 130, AutoSize = true, Font = new Font(Font.FontFamily, 9.5F, FontStyle.Bold), Checked = true };
-        _rbApiYesSimple = new RadioButton { Text = "DeepSeek API（deepseek-v4-pro[1m]）", Left = 4, Top = 162, AutoSize = true, Font = new Font(Font.FontFamily, 9.5F, FontStyle.Bold) };
+        y += 48;
+        p.Controls.Add(StyledLabel("API 提供商:", 4, y + 5, 10f, FontStyle.Bold, TextDark));
+
+        _rbApiNoSimple = new RadioButton { Text = "默认 Anthropic API（无需配置）", Left = 8, Top = y + 32, AutoSize = true, Font = new Font(Font.FontFamily, 9.5F, FontStyle.Bold), ForeColor = TextDark, Checked = true };
+        _rbApiYesSimple = new RadioButton { Text = "DeepSeek API（deepseek-v4-pro[1m]）", Left = 8, Top = y + 60, AutoSize = true, Font = new Font(Font.FontFamily, 9.5F, FontStyle.Bold), ForeColor = TextDark };
         _rbApiYesSimple.CheckedChanged += (_, _) => _txtApiKeySimple.Enabled = _rbApiYesSimple.Checked;
         p.Controls.Add(_rbApiNoSimple); p.Controls.Add(_rbApiYesSimple);
-        p.Controls.Add(L("API Key:", 24, 196, 9, FontStyle.Bold, Color.FromArgb(60, 68, 80)));
-        _txtApiKeySimple = new TextBox { Left = 100, Top = 193, Width = 400, PasswordChar = '*', Enabled = false };
-        p.Controls.Add(_txtApiKeySimple);
-        p.Controls.Add(L("填入 Key 即可，4 个模型槽全预填 deepseek-v4-pro[1m]", 24, 224, 8, FontStyle.Regular, Color.FromArgb(130, 140, 155)));
 
-        // Info
-        p.Controls.Add(L("点击下一步将自动配置：Skills全选 + 专业模式 + 截图工具 + 最强算力 + 自动更新", 0, 270, 8, FontStyle.Regular, Color.FromArgb(140, 150, 165)));
+        p.Controls.Add(StyledLabel("API Key:", 28, y + 92, 9f, FontStyle.Bold, TextDark));
+        _txtApiKeySimple = new TextBox { Left = 100, Top = y + 89, Width = 420, PasswordChar = '*', Enabled = false, BackColor = Color.FromArgb(248, 250, 253), BorderStyle = BorderStyle.FixedSingle };
+        p.Controls.Add(_txtApiKeySimple);
+        p.Controls.Add(StyledLabel("填入 Key 即可，4 个模型槽全预填 + v4-flash subagent", 100, y + 118, 8f, FontStyle.Regular, TextGray));
+
+        p.Controls.Add(StyledLabel("点击下一步将自动配置：Skills 全选 + 专业模式 + 截图工具 + 最大强度思考", 4, y + 146, 8f, FontStyle.Regular, Color.FromArgb(140, 150, 165)));
         UpdateSimplePath();
         return p;
     }
@@ -254,14 +391,22 @@ public partial class Form1 : Form
     Panel BuildPageInstall()
     {
         var p = new Panel();
-        _chkThinking = new CheckBox { Text = "启用最大强度思考", Left = 0, Top = 4, AutoSize = true, Font = new Font(Font.FontFamily, 9F, FontStyle.Bold) };
-        _chkNoUpdate = new CheckBox { Text = "禁用自动升级", Left = 300, Top = 4, AutoSize = true, Font = new Font(Font.FontFamily, 9F, FontStyle.Bold) };
+        p.Controls.Add(Banner("", "安装"));
+
+        int y = 62;
+        _chkThinking = new CheckBox { Text = "启用最大强度思考", Left = 4, Top = y, AutoSize = true, Font = new Font(Font.FontFamily, 9.5F, FontStyle.Bold), ForeColor = TextDark, Checked = true };
+        _chkNoUpdate = new CheckBox { Text = "禁用自动升级", Left = 320, Top = y, AutoSize = true, Font = new Font(Font.FontFamily, 9.5F, FontStyle.Bold), ForeColor = TextDark };
         p.Controls.Add(_chkThinking); p.Controls.Add(_chkNoUpdate);
-        var btnInstall = new Button { Text = "开始安装", Left = 0, Top = 34, Width = 160, Height = 44, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(0, 170, 80), ForeColor = Color.White, Font = new Font(Font.FontFamily, 11F, FontStyle.Bold), UseVisualStyleBackColor = false, Cursor = Cursors.Hand };
+
+        var btnInstall = new Button { Text = "开始安装", Left = 0, Top = y + 34, Width = 180, Height = 46, FlatStyle = FlatStyle.Flat, BackColor = SuccessGreen, ForeColor = Color.White, Font = new Font(Font.FontFamily, 12F, FontStyle.Bold), UseVisualStyleBackColor = false, Cursor = Cursors.Hand };
         btnInstall.Click += async (_, _) => await DoInstall();
         p.Controls.Add(btnInstall);
-        _bar = new ProgressBar { Left = 175, Top = 44, Width = 565, Height = 22, Style = ProgressBarStyle.Continuous }; p.Controls.Add(_bar);
-        _rtbLog = new RichTextBox { Left = 0, Top = 90, Width = 740, Height = 370, ReadOnly = true, BackColor = Color.FromArgb(28, 30, 35), ForeColor = Color.FromArgb(200, 210, 220), Font = new Font("Consolas", 8.5F), BorderStyle = BorderStyle.None }; p.Controls.Add(_rtbLog);
+
+        _bar = new ProgressBar { Left = 195, Top = y + 44, Width = 555, Height = 24, Style = ProgressBarStyle.Continuous };
+        p.Controls.Add(_bar);
+
+        _rtbLog = new RichTextBox { Left = 0, Top = y + 94, Width = 750, Height = 360, ReadOnly = true, BackColor = Color.FromArgb(26, 27, 38), ForeColor = Color.FromArgb(169, 177, 214), Font = new Font("Consolas", 9F), BorderStyle = BorderStyle.None };
+        p.Controls.Add(_rtbLog);
         return p;
     }
 
@@ -326,7 +471,16 @@ public partial class Form1 : Form
         }
         catch { return (false, ""); }
     }
-    void SetStatus(Label l, string n, bool ok, string v) { l.Text = ok ? $"{n}: 已安装 {v.Trim()}" : $"{n}: 未安装"; l.ForeColor = ok ? Color.FromArgb(0, 150, 80) : Color.FromArgb(220, 100, 40); if (l.Parent is Panel p && p.Controls.Count > 1 && p.Controls[0] is Label d) d.ForeColor = ok ? Color.FromArgb(0, 180, 80) : Color.FromArgb(240, 100, 50); }
+    void SetStatus(Label l, string n, bool ok, string v)
+    {
+        l.Text = ok ? $"{n}: 已安装 {v.Trim()}" : $"{n}: 未安装";
+        l.ForeColor = ok ? Color.FromArgb(0, 150, 80) : Color.FromArgb(220, 100, 40);
+        if (l.Parent is Panel p && p.Controls.Count > 1 && p.Controls[0] is Label d) {
+            d.ForeColor = ok ? SuccessGreen : WarnOrange;
+            p.BackColor = ok ? Color.FromArgb(240, 253, 244) : Color.FromArgb(255, 247, 237);
+            p.Invalidate();
+        }
+    }
     void RefreshLocale() { _btnBack.Text = Locale.Lang == "zh" ? "← 上一步" : "< Back"; _btnNext.Text = Locale.Lang == "zh" ? "下一步 →" : "Next >"; _chkSelectAll.Text = Locale.Lang == "zh" ? "全选/取消全选" : "Select All"; }
 
     // ═══ INSTALL ══════════════════════════════════════
@@ -339,7 +493,7 @@ public partial class Form1 : Form
         var P = (Action<int, int>)((c, t) => BeginInvoke(() => { _bar.Maximum = t; _bar.Value = Math.Min(c, t); }));
 
         L("═══════════════════════════════════");
-        L($"  Claude Code Installer v1.0.8 [{( _isSimple ? "小白" : "专业" )}] | Shimizu");
+        L($"  Claude Code Installer v1.0.5 [{( _isSimple ? "小白" : "专业" )}] | Shimizu");
         L($"  Drive:{_drive}  Node:{NodePath}  Git:{GitPath}");
         L("═══════════════════════════════════");
         L("💡 提示: 安装过程中如弹出 UAC/权限提示窗口，请点击 [是] 以继续安装");
@@ -479,23 +633,30 @@ public partial class Form1 : Form
         if (File.Exists(targetExe)) { log("  claude.exe 已存在"); return; }
         Directory.CreateDirectory(ToolsPath);
 
-        // 1. Resolve version
+        // 1. Resolve version (multi-source with mirror fallback + hardcoded fallback)
         string? version = null;
         var verCandidates = new[] {
+            "https://ghproxy.net/https://downloads.claude.ai/claude-code-releases/latest",
+            "https://mirror.ghproxy.com/https://downloads.claude.ai/claude-code-releases/latest",
+            "https://ghproxy.net/https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/latest",
+            "https://mirror.ghproxy.com/https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/latest",
             "https://downloads.claude.ai/claude-code-releases/latest",
             "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/latest",
         };
         foreach (var vu in verCandidates) {
             try {
+                log($"  检测版本: {new Uri(vu).Host}...");
                 using var wc = new System.Net.WebClient();
                 wc.Headers.Add("User-Agent", "CCI/1.0");
-                var cts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+                var cts = new CancellationTokenSource(TimeSpan.FromSeconds(12));
                 var v = (await wc.DownloadStringTaskAsync(vu).WaitAsync(cts.Token)).Trim();
-                if (!string.IsNullOrEmpty(v) && v.Length < 20) { version = v; break; }
-            } catch { }
+                if (!string.IsNullOrEmpty(v) && v.Length < 30) { version = v; log($"  ✓ 版本: {v}"); break; }
+            } catch (Exception ex) { log($"  ✗ {new Uri(vu).Host}: {ex.Message}"); }
         }
-        if (string.IsNullOrEmpty(version)) throw new Exception("无法获取 Claude Code 最新版本号，请检查网络");
-        log($"  版本: {version}");
+        if (string.IsNullOrEmpty(version)) {
+            version = "1.0.36";
+            log($"  ⚠ 所有版本检测源均失败，使用硬编码回退版本: {version}");
+        }
 
         // 2. Build download URL chain (original + GCS + ghproxy mirrors)
         var plat = "win32-x64";
