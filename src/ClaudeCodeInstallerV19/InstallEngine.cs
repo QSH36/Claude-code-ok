@@ -261,14 +261,10 @@ public class InstallEngine
         else if (url.Contains("github.com/git-for-windows"))
         {
             urls.Add(url.Replace("github.com/git-for-windows/git/releases/download/v2.45.2.windows.1", "npmmirror.com/mirrors/git-for-windows/v2.45.2.windows.1"));
-            urls.Add(url.Replace("github.com", "mirror.ghproxy.com/https://github.com"));
             urls.Add(url);
         }
         else if (url.Contains("github.com"))
         {
-            urls.Add(url.Replace("github.com", "mirror.ghproxy.com/https://github.com"));
-            urls.Add(url.Replace("github.com", "ghproxy.net/https://github.com"));
-            urls.Add(url.Replace("github.com", "gitclone.com/github.com"));
             urls.Add(url);
         }
         else if (url.Contains("python.org"))
@@ -365,14 +361,10 @@ public class InstallEngine
         if (File.Exists(targetExe)) { _log("  claude.exe 已存在"); return; }
         Directory.CreateDirectory(_s.ToolsPath);
 
-        // 1. Resolve version (6-source mirror chain + hardcoded fallback)
+        // 1. Resolve version (official CDN + GCS + hardcoded fallback)
         string? version = null;
         var verCandidates = new[]
         {
-            "https://ghproxy.net/https://downloads.claude.ai/claude-code-releases/latest",
-            "https://mirror.ghproxy.com/https://downloads.claude.ai/claude-code-releases/latest",
-            "https://ghproxy.net/https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/latest",
-            "https://mirror.ghproxy.com/https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/latest",
             "https://downloads.claude.ai/claude-code-releases/latest",
             "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/latest",
         };
@@ -389,19 +381,20 @@ public class InstallEngine
             }
             catch (Exception ex) { _log($"  ✗ {new Uri(vu).Host}: {ex.Message}"); }
         }
-        if (string.IsNullOrEmpty(version)) { version = "1.0.36"; _log($"  ⚠ 使用回退版本: {version}"); }
+        if (string.IsNullOrEmpty(version)) { version = "2.1.150"; _log($"  ⚠ 使用回退版本: {version}"); }
 
-        // 2. Build download URL chain (original + GCS + ghproxy mirrors)
+        // 2. Build download URL chain (local copy → user mirror → official CDN → GCS)
         var plat = "win32-x64";
         var urls = new List<string>
         {
+            // Local file copy (shipped with installer or pre-downloaded)
+            $"file:///F:/ClaudeCodeLocal/claude.exe",
+            // User's own mirror server
+            $"https://www.axwsd.cn/cc/claude-{version}-{plat}.exe",
+            // Official sources
             $"https://downloads.claude.ai/claude-code-releases/{version}/{plat}/claude.exe",
             $"https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/{version}/{plat}/claude.exe",
         };
-        // prepend mirror-wrapped URLs for China
-        var mirrors = new[] { "https://ghproxy.net/", "https://mirror.ghproxy.com/" };
-        var org = urls.ToList();
-        foreach (var m in mirrors) foreach (var u in org) urls.Insert(0, m + u);
 
         // 3. Download with 30-min timeout (approx 150MB)
         var downloaded = false;
@@ -409,6 +402,20 @@ public class InstallEngine
         {
             try
             {
+                // Handle local file copy
+                if (u.StartsWith("file:///"))
+                {
+                    var localPath = u.Replace("file:///", "").Replace("/", "\\");
+                    _log($"  本地复制: {localPath}");
+                    if (File.Exists(localPath) && new FileInfo(localPath).Length > 50_000_000)
+                    {
+                        File.Copy(localPath, targetExe, true);
+                        downloaded = true; _log("  ✓ 本地复制完成"); break;
+                    }
+                    _log("  本地文件不存在或无效，尝试下一个源...");
+                    continue;
+                }
+
                 _log($"  下载: {new Uri(u).Host}...");
                 var tmp = Path.GetTempFileName();
                 using var wc = new WebClient();
