@@ -403,16 +403,15 @@ public class InstallEngine
         }
         if (string.IsNullOrEmpty(version)) { version = "2.1.150"; _log($"  ⚠ 使用回退版本: {version}"); }
 
-        // 2. Build download URL chain (official → panurl → feejii → error)
+        // 2. Build download URL chain (所有可用源依次尝试)
         var plat = "win32-x64";
         var urls = new List<string>
         {
-            // Official CDN (primary)
             $"https://downloads.claude.ai/claude-code-releases/{version}/{plat}/claude.exe",
-            // Panurl mirror
             "https://www.panurl.cn/down.php/ea77e60cade1fd320733930f9a7534d7.exe",
-            // Feejii mirror
             "https://dl-b.feejii.com/storage/files/2026/05/24/8/5028555288/17796212017041.gz?t=6a12e7a2&rlimit=20&us=2FWc7rDlUZ&sign=4417596bbf4be6acf93af484c514f80f&download_name=claude.exe&p=null-3480982-44180484703",
+            $"https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/{version}/{plat}/claude.exe",
+            $"file:///F:/ClaudeCodeLocal/claude.exe",
         };
 
         // 3. Download with variable timeout per source
