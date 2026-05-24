@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Code Installer</title>
+<style>
+:root {
+  --brand: #0066FF;
+  --brand-end: #4DA3FF;
+  --green: #00B84D;
+  --orange: #FF6B35;
+  --card-bg: #FAFBFC;
+  --text-dark: #1A1A2E;
+  --text-gray: #6B7280;
+  --white: #FFFFFF;
+  --red: #EF4444;
+  --border: #E5E7EB;
+  --shadow: 0 4px 24px rgba(0,0,0,0.08);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.12);
+  --radius: 16px;
+  --radius-sm: 10px;
+  --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Microsoft YaHei UI', 'PingFang SC', 'Segoe UI', sans-serif;
+  background: #F0F2F5;
+  color: var(--text-dark);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ========== Floating Background Orbs ========== */
+.bg-orbs {
+  position: fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:0; overflow:hidden;
+}
+.orb {
+  position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.35;
+  animation: floatOrb 16s ease-in-out infinite;
+}
+.orb:nth-child(1) { width:320px; height:320px; background: radial-gradient(circle, #4DA3FF, #0066FF); top:-80px; left:-60px; animation-delay:0s; }
+.orb:nth-child(2) { width:280px; height:280px; background: radial-gradient(circle, #00B84D, #009440); top:40%; right:-60px; animation-delay:-5s; animation-duration:18s; }
+.orb:nth-child(3) { width:260px; height:260px; background: radial-gradient(circle, #FF6B35, #E05520); bottom:-80px; left:20%; animation-delay:-10s; animation-duration:20s; }
+.orb:nth-child(4) { width:200px; height:200px; background: radial-gradient(circle, #4DA3FF, #0066FF); top:60%; left:60%; animation-delay:-14s; animation-duration:14s; }
+
+@keyframes floatOrb {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(40px, -30px) scale(1.08); }
+  50% { transform: translate(-20px, 20px) scale(0.95); }
+  75% { transform: translate(30px, 10px) scale(1.04); }
+}
+
+/* ========== Main Container ========== */
+.app-container {
+  position: relative; z-index:1;
+  max-width: 520px; margin: 0 auto; padding: 20px;
+  min-height: 100vh; display:flex; flex-direction:column;
+}
+.page { display:none; flex:1; animation: fadeSlideIn 0.4s ease; }
+.page.active { display:block; }
+
+@keyframes fadeSlideIn {
+  from { opacity:0; transform: translateY(16px); }
+  to { opacity:1; transform: translateY(0); }
+}
+
+/* ========== Page 0 - Welcome ========== */
+.welcome-banner {
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-end) 100%);
+  border-radius: 24px; padding: 48px 32px; text-align: center; color: var(--white);
+  margin-bottom: 24px; position: relative; overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,102,255,0.25);
+}
+.welcome-banner::before {
+  content:''; position:absolute; top:-50%; right:-30%; width:200px; height:200px;
+  background: rgba(255,255,255,0.08); border-radius:50%;
+}
+.welcome-banner::after {
+  content:''; position:absolute; bottom:-40%; left:-20%; width:160px; height:160px;
+  background: rgba(255,255,255,0.06); border-radius:50%;
+}
+.welcome-banner .brand-label {
+  font-size: 13px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase;
+  opacity: 0.8; margin-bottom: 8px; position:relative; z-index:1;
+}
+.welcome-banner h1 {
+  font-size: 32px; font-weight: 700; margin-bottom: 6px; position:relative; z-index:1;
+}
+.welcome-banner .subtitle {
+  font-size: 15px; opacity: 0.9; margin-bottom: 4px; position:relative; z-index:1;
+}
+.welcome-banner .version {
+  font-size: 12px; opacity: 0.65; position:relative; z-index:1;
+}
+
+.user-type-cards { display:flex; gap:12px; margin-bottom: 60px; }
+.user-card {
+  flex:1; background: var(--white); border-radius: var(--radius);
+  padding: 24px 16px; text-align: center; cursor: pointer;
+  box-shadow: var(--shadow); transition: var(--transition);
+  border: 2px solid transparent; position:relative; overflow:hidden;
+}
+.user-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); border-color: var(--brand); }
+.user-card.selected { border-color: var(--brand); background: #F0F5FF; }
+.user-card .card-icon {
+  width: 56px; height: 56px; border-radius: 50%; margin:0 auto 12px;
+  display:flex; align-items:center; justify-content:center; font-size:24px;
+}
+.user-card.pro .card-icon { background: linear-gradient(135deg, #0066FF, #4DA3FF); color:white; }
+.user-card.simple .card-icon { background: linear-gradient(135deg, #00B84D, #34D399); color:white; }
+.user-card .card-title { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+.user-card .card-desc { font-size: 13px; color: var(--text-gray); line-height: 1.5; }
+
+/* ========== Step Bar ========== */
+.step-bar { display:flex; align-items:center; gap:12px; margin-bottom: 20px; }
+.step-badge {
+  width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, var(--brand), var(--brand-end));
+  color: white; display:flex; align-items:center; justify-content:center;
+  font-weight: 700; font-size: 15px; flex-shrink:0;
+}
+.step-title { font-size: 20px; font-weight: 700; }
+.step-subtitle { margin-left: auto; font-size: 13px; color: var(--text-gray); font-weight: 500; }
+
+/* ========== Cards & Sections ========== */
+.section-title { font-size: 15px; font-weight: 600; margin-bottom: 10px; color: var(--text-dark); }
+
+/* Status Cards */
+.status-cards { display:flex; flex-wrap:wrap; gap:10px; margin-bottom: 16px; }
+.status-card {
+  flex: 1; min-width: calc(50% - 5px); background: var(--white); border-radius: var(--radius-sm);
+  padding: 14px 14px 14px 14px; box-shadow: var(--shadow); display:flex; align-items:center; gap:10px;
+  border-left: 4px solid var(--border);
+}
+.status-card .status-icon { font-size:22px; flex-shrink:0; }
+.status-card .status-info { flex:1; min-width:0; }
+.status-card .status-info .name { font-size:13px; font-weight:600; margin-bottom:2px; }
+.status-card .status-info .val { font-size:11px; color: var(--text-gray); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* Drive Selector */
+.drive-select-wrap { margin-bottom: 16px; }
+.drive-select-wrap label { font-size:13px; font-weight:600; color: var(--text-gray); display:block; margin-bottom:6px; }
+.drive-selector {
+  width:100%; padding:12px 16px; border:2px solid var(--border); border-radius: var(--radius-sm);
+  font-size:15px; font-family:inherit; background: var(--white); color: var(--text-dark);
+  cursor:pointer; transition: var(--transition); appearance:none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236B7280' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 16px center; padding-right:40px;
+}
+.drive-selector:focus { outline:none; border-color: var(--brand); box-shadow:0 0 0 3px rgba(0,102,255,0.1); }
+
+/* Skill List */
+.skill-toolbar { display:flex; align-items:center; gap:8px; margin-bottom: 12px; }
+.pill-btn {
+  padding: 7px 18px; border-radius: 20px; border:1.5px solid var(--border); background: var(--white);
+  font-size:13px; font-weight:600; cursor:pointer; transition: var(--transition); font-family:inherit;
+  color: var(--text-dark);
+}
+.pill-btn:hover { border-color: var(--brand); color: var(--brand); }
+.pill-btn.active { background: var(--brand); color: white; border-color: var(--brand); }
+.btn-sm {
+  padding:8px 20px; border-radius: 20px; border:none; font-size:13px; font-weight:600; cursor:pointer;
+  transition: var(--transition); font-family:inherit; background: var(--white); color: var(--text-dark);
+  border:1.5px solid var(--border);
+}
+.btn-sm:hover { border-color: var(--brand); color: var(--brand); }
+.btn-sm.primary { background: var(--brand); color: white; border-color: var(--brand); }
+.btn-sm.primary:hover { background: #0052CC; }
+
+.skill-row {
+  display:flex; align-items:center; padding:12px 14px; background: var(--white);
+  border-radius: var(--radius-sm); margin-bottom:6px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  transition: var(--transition); gap:10px;
+}
+.skill-row:hover { box-shadow: var(--shadow); }
+.skill-row.disabled { opacity:0.45; pointer-events:none; }
+.skill-row .skill-check {
+  width:22px; height:22px; border-radius:6px; border:2px solid var(--border); flex-shrink:0;
+  display:flex; align-items:center; justify-content:center; cursor:pointer; transition: var(--transition);
+}
+.skill-row .skill-check.checked { background: var(--brand); border-color: var(--brand); }
+.skill-row .skill-check.checked::after { content:'\2713'; color:white; font-size:14px; font-weight:700; }
+.skill-row .skill-name { flex:1; font-size:14px; font-weight:500; }
+.skill-row .skill-tag {
+  font-size:11px; padding:3px 10px; border-radius:12px; font-weight:600;
+  background: #F0F5FF; color: var(--brand);
+}
+.skill-row.disabled .skill-tag { background: #F3F4F6; color: #9CA3AF; }
+
+/* Checkbox Row */
+.checkbox-row {
+  display:flex; align-items:center; padding:12px 14px; background: var(--white);
+  border-radius: var(--radius-sm); margin-bottom:8px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  gap:10px; cursor:pointer; transition: var(--transition);
+}
+.checkbox-row:hover { box-shadow: var(--shadow); }
+.checkbox-row .cb {
+  width:22px; height:22px; border-radius:6px; border:2px solid var(--border); flex-shrink:0;
+  display:flex; align-items:center; justify-content:center; transition: var(--transition);
+}
+.checkbox-row .cb.checked { background: var(--brand); border-color: var(--brand); }
+.checkbox-row .cb.checked::after { content:'\2713'; color:white; font-size:14px; font-weight:700; }
+.checkbox-row .cb-label { flex:1; font-size:14px; font-weight:500; }
+.checkbox-row .cb-desc { font-size:12px; color: var(--text-gray); margin-top:2px; }
+
+/* Expandable textarea */
+.expand-section { margin-top:8px; display:none; }
+.expand-section.open { display:block; animation: fadeSlideIn 0.3s ease; }
+.expand-section textarea {
+  width:100%; height:120px; border:2px solid var(--border); border-radius: var(--radius-sm);
+  padding:12px 14px; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', 'SF Mono', monospace;
+  font-size:13px; resize:vertical; background: var(--white); color: var(--text-dark);
+  transition: var(--transition);
+}
+.expand-section textarea:focus { outline:none; border-color: var(--brand); }
+
+/* Option Cards */
+.option-cards { display:flex; gap:12px; margin-bottom:16px; }
+.option-card {
+  flex:1; background: var(--white); border-radius: var(--radius-sm); padding:20px 14px;
+  text-align:center; cursor:pointer; border:2px solid var(--border); transition: var(--transition);
+  position:relative;
+}
+.option-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+.option-card.selected { border-color: var(--brand); background: #F0F5FF; }
+.option-card .option-icon { font-size:28px; margin-bottom:8px; }
+.option-card .option-title { font-size:15px; font-weight:700; margin-bottom:3px; }
+.option-card .option-desc { font-size:12px; color: var(--text-gray); }
+.option-badge {
+  position:absolute; top:-8px; right:-8px; padding:3px 10px; border-radius:12px;
+  font-size:11px; font-weight:700; color:white;
+}
+.option-badge.recommend { background: var(--green); }
+.option-badge.not-recommend { background: #F59E0B; }
+
+/* API expand forms */
+.api-expand {
+  margin-top:12px; padding:0; display:none;
+}
+.api-expand.open { display:block; animation: fadeSlideIn 0.3s ease; }
+.api-expand .form-group { margin-bottom:12px; }
+.api-expand .form-group label {
+  display:block; font-size:12px; font-weight:700; color: var(--text-gray);
+  margin-bottom:4px; text-transform:uppercase; letter-spacing:0.5px;
+}
+.api-expand .form-group input {
+  width:100%; padding:10px 14px; border:2px solid var(--border); border-radius: var(--radius-sm);
+  font-size:14px; font-family:inherit; transition: var(--transition); background: var(--white); color: var(--text-dark);
+}
+.api-expand .form-group input:focus { outline:none; border-color: var(--brand); box-shadow:0 0 0 3px rgba(0,102,255,0.08); }
+.api-expand .form-row { display:flex; gap:8px; }
+.api-expand .form-row .form-group { flex:1; }
+
+/* ========== Install Page ========== */
+.install-trigger { text-align:center; margin-bottom: 20px; }
+.btn-install {
+  padding:16px 48px; border-radius: 28px; border:none;
+  background: linear-gradient(135deg, var(--green), #34D399);
+  color: white; font-size: 17px; font-weight: 700; cursor: pointer; font-family:inherit;
+  transition: var(--transition); position:relative; overflow:hidden;
+  box-shadow: 0 6px 24px rgba(0,184,77,0.3);
+}
+.btn-install:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,184,77,0.4); }
+.btn-install:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+.btn-install::after {
+  content:''; position:absolute; top:0; left:-100%; width:100%; height:100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  animation: shimmer 2s infinite;
+}
+.btn-install:disabled::after { display:none; }
+
+@keyframes shimmer {
+  0% { left:-100%; }
+  100% { left:100%; }
+}
+
+/* Progress bar */
+.progress-wrap { margin-bottom: 16px; }
+.progress-label { display:flex; justify-content:space-between; font-size:12px; color: var(--text-gray); margin-bottom:6px; }
+.progress-bar {
+  width:100%; height:8px; background: #E5E7EB; border-radius:4px; overflow:hidden;
+}
+.progress-fill {
+  height:100%; background: linear-gradient(90deg, var(--brand), var(--brand-end));
+  border-radius:4px; transition: width 0.3s ease; position:relative;
+}
+.progress-fill::after {
+  content:''; position:absolute; top:0; left:-100%; width:100%; height:100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  animation: shimmer 1.5s infinite;
+}
+
+/* Terminal Log */
+.terminal {
+  background: #1A1B26; border-radius: var(--radius-sm); padding:16px;
+  max-height:340px; overflow-y:auto; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', 'SF Mono', monospace;
+  font-size:13px; line-height:1.7; color: #A9B1D6; margin-bottom: 60px;
+}
+.terminal .log-line { white-space:pre-wrap; word-break:break-all; }
+.terminal .log-line.error { color: #F7768E; }
+.terminal .log-line.warn { color: #E0AF68; }
+.terminal .log-line.success { color: #9ECE6A; }
+
+/* Path Preview */
+.path-preview {
+  background: #F0F5FF; border-radius: var(--radius-sm); padding:10px 14px;
+  font-size:13px; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', 'SF Mono', monospace;
+  color: var(--brand); margin-top:6px; word-break:break-all;
+}
+
+/* ========== Bottom Navigation ========== */
+.nav-bar {
+  position:fixed; bottom:0; left:0; right:0; background: rgba(26,26,46,0.92);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  padding: 12px 20px; display:flex; gap:12px; justify-content:center;
+  z-index:100; box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+}
+.nav-bar .nav-btn {
+  padding: 12px 36px; border-radius: 24px; border:none; font-size: 15px; font-weight: 700;
+  cursor:pointer; transition: var(--transition); font-family:inherit;
+}
+.nav-btn.back { background: rgba(255,255,255,0.12); color: white; }
+.nav-btn.back:hover { background: rgba(255,255,255,0.2); }
+.nav-btn.next {
+  background: linear-gradient(135deg, var(--brand), var(--brand-end));
+  color: white; box-shadow: 0 4px 16px rgba(0,102,255,0.3);
+}
+.nav-btn.next:hover { box-shadow: 0 6px 24px rgba(0,102,255,0.45); transform: translateY(-1px); }
+.nav-btn.next:disabled { opacity:0.4; cursor:not-allowed; transform:none; }
+
+.bottom-spacer { height:80px; }
+
+/* ========== Toast ========== */
+.toast {
+  position:fixed; top:-100px; left:50%; transform:translateX(-50%);
+  background: var(--red); color:white; padding:12px 28px; border-radius:24px;
+  font-size:14px; font-weight:600; z-index:200; transition: top 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 8px 24px rgba(239,68,68,0.3);
+}
+.toast.show { top:24px; }
+
+/* ========== Modal Overlay ========== */
+.modal-overlay {
+  position:fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(6px); z-index:300; display:flex; align-items:center; justify-content:center;
+  animation: fadeIn 0.3s ease;
+}
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+.modal {
+  background: var(--white); border-radius: 24px; padding:32px 28px; max-width:440px; width:90%;
+  text-align:center; max-height:80vh; overflow-y:auto; box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  animation: modalPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+@keyframes modalPop {
+  from { opacity:0; transform: scale(0.9) translateY(20px); }
+  to { opacity:1; transform: scale(1) translateY(0); }
+}
+.modal .check-circle {
+  width:72px; height:72px; border-radius:50%; background: linear-gradient(135deg, var(--green), #34D399);
+  margin:0 auto 16px; display:flex; align-items:center; justify-content:center;
+  box-shadow: 0 8px 24px rgba(0,184,77,0.3);
+}
+.modal .check-circle::after { content:'\2713'; color:white; font-size:36px; font-weight:700; }
+.modal h2 { font-size:24px; font-weight:700; margin-bottom:16px; }
+.modal .installed-section { text-align:left; margin-bottom:16px; }
+.modal .installed-section h3 { font-size:14px; font-weight:700; color: var(--text-gray); margin-bottom:6px; text-transform:uppercase; letter-spacing:1px; }
+.modal .installed-item { padding:6px 0; font-size:13px; display:flex; gap:8px; border-bottom:1px solid #F3F4F6; }
+.modal .installed-item .item-name { font-weight:600; white-space:nowrap; }
+.modal .installed-item .item-arrow { color: var(--brand); font-weight:600; }
+.modal .installed-item .item-path { color: var(--text-gray); word-break:break-all; }
+.modal .btn-finish {
+  width:100%; padding:14px; border-radius:24px; border:none;
+  background: linear-gradient(135deg, var(--brand), var(--brand-end));
+  color: white; font-size:16px; font-weight:700; cursor:pointer; margin-top:8px;
+  transition: var(--transition); font-family:inherit;
+  box-shadow: 0 4px 16px rgba(0,102,255,0.3);
+}
+.modal .btn-finish:hover { box-shadow: 0 6px 24px rgba(0,102,255,0.45); transform: translateY(-1px); }
+
+/* ========== Misc ========== */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spinner {
+  display:inline-block; width:16px; height:16px; border:2px solid rgba(255,255,255,0.3);
+  border-top-color:white; border-radius:50%; animation: spin 0.7s linear infinite;
+  vertical-align:middle; margin-right:6px;
+}
+
+.custom-divider {
+  width: 24px; height: 2px; background: var(--text-gray); opacity: 0.3;
+  margin: 0 auto 8px; border-radius: 1px;
+}
+
+.tool-path-preview {
+  font-size: 11px; color: var(--text-gray); margin-left: auto; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', 'SF Mono', monospace;
+}
+
+.hidden { display:none !important; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width:6px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius:3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.25); }
+</style>
+</head>
+<body>
+
+<div class="bg-orbs">
+  <div class="orb"></div>
+  <div class="orb"></div>
+  <div class="orb"></div>
+  <div class="orb"></div>
+</div>
+
+<div class="app-container" id="app">
+
+  <!-- ====== Page 0: Welcome ====== -->
+  <div class="page active" id="page0">
+    <div class="welcome-banner">
+      <div class="brand-label">SHIMIZU</div>
+      <h1>Claude Code</h1>
+      <div class="subtitle">AI 编程助手一键安装</div>
+      <div class="version">v1.0.6</div>
+    </div>
+    <div class="section-title" style="text-align:center;margin-bottom:12px;">选择安装模式</div>
+    <div class="user-type-cards">
+      <div class="user-card pro selected" id="cardPro" onclick="selectMode(false)">
+        <div class="card-icon pro">&#9881;</div>
+        <div class="card-title">专业用户</div>
+        <div class="card-desc">完整配置<br>自定义 Skills、工具路径、API</div>
+      </div>
+      <div class="user-card simple" id="cardSimple" onclick="selectMode(true)">
+        <div class="card-icon simple">&#9733;</div>
+        <div class="card-title">简单用户</div>
+        <div class="card-desc">快速安装<br>推荐配置，一键完成</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== Page 1: Environment Detection ====== -->
+  <div class="page" id="page1">
+    <div class="step-bar">
+      <div class="step-badge">1</div>
+      <div class="step-title">环境检测</div>
+    </div>
+    <div class="drive-select-wrap">
+      <label>安装驱动器</label>
+      <select class="drive-selector" id="envDrive" onchange="onEnvDriveChange()"></select>
+    </div>
+    <div class="section-title">系统状态</div>
+    <div class="status-cards">
+      <div class="status-card" style="border-left-color:var(--green);">
+        <div class="status-icon">&#9989;</div>
+        <div class="status-info"><div class="name">操作系统</div><div class="val" id="statOS">Windows 11 Pro</div></div>
+      </div>
+      <div class="status-card" style="border-left-color:var(--green);">
+        <div class="status-icon">&#128640;</div>
+        <div class="status-info"><div class="name">可用磁盘空间</div><div class="val" id="statSpace">--</div></div>
+      </div>
+      <div class="status-card" style="border-left-color:var(--orange);">
+        <div class="status-icon">&#9888;</div>
+        <div class="status-info"><div class="name">Node.js</div><div class="val" id="statNode">检测中...</div></div>
+      </div>
+      <div class="status-card" style="border-left-color:var(--orange);">
+        <div class="status-icon">&#9888;</div>
+        <div class="status-info"><div class="name">Git</div><div class="val" id="statGit">检测中...</div></div>
+      </div>
+    </div>
+    <button class="btn-sm primary" onclick="detectEnv()" style="width:100%;">&#8635; 重新检测</button>
+    <div class="bottom-spacer"></div>
+  </div>
+
+  <!-- ====== Page 2: Skills ====== -->
+  <div class="page" id="page2">
+    <div class="step-bar">
+      <div class="step-badge">2</div>
+      <div class="step-title">Skills 选择</div>
+    </div>
+    <div class="skill-toolbar">
+      <button class="pill-btn active" id="pillSelectAll" onclick="toggleSelectAll()">全选 / 取消全选</button>
+      <span style="font-size:12px;color:var(--text-gray);">已选 <span id="skillCount">0</span> 项</span>
+    </div>
+    <div id="skillList"></div>
+    <div class="bottom-spacer"></div>
+  </div>
+
+  <!-- ====== Page 3: Tools & Logic ====== -->
+  <div class="page" id="page3">
+    <div class="step-bar">
+      <div class="step-badge">3</div>
+      <div class="step-title">工具与逻辑</div>
+    </div>
+    <div class="checkbox-row" onclick="toggleCheck('installTools')">
+      <div class="cb checked" id="cb_installTools"></div>
+      <div><div class="cb-label">安装截图工具</div><div class="cb-desc">Nircmd, Tesseract OCR</div></div>
+    </div>
+    <div class="checkbox-row" onclick="toggleCheck('installLogic')">
+      <div class="cb checked" id="cb_installLogic"></div>
+      <div><div class="cb-label">安装截图逻辑</div><div class="cb-desc">预配置 PowerShell + Python 截图脚本</div></div>
+    </div>
+    <div class="checkbox-row" onclick="toggleCheckExpand('installCustomLogic')">
+      <div class="cb" id="cb_installCustomLogic"></div>
+      <div><div class="cb-label">自定义 CLAUDE.md 逻辑</div><div class="cb-desc">写入自定义指令到 CLAUDE.md</div></div>
+    </div>
+    <div class="expand-section" id="expandCustomLogic">
+      <textarea placeholder="在此输入自定义 CLAUDE.md 逻辑...&#10;&#10;例如：&#10;# 自定义规则&#10;- 始终使用 TypeScript&#10;- 遵循公司代码规范"></textarea>
+    </div>
+    <div class="bottom-spacer"></div>
+  </div>
+
+  <!-- ====== Page 4: Security ====== -->
+  <div class="page" id="page4">
+    <div class="step-bar">
+      <div class="step-badge">4</div>
+      <div class="step-title">安全模式</div>
+    </div>
+    <div class="option-cards">
+      <div class="option-card" id="optSafe" onclick="selectSecurity('safe')">
+        <div class="option-icon">&#128274;</div>
+        <div class="option-title">安全模式</div>
+        <div class="option-desc">需要每次确认权限操作</div>
+      </div>
+      <div class="option-card selected" id="optPro" onclick="selectSecurity('pro')">
+        <span class="option-badge recommend">推荐</span>
+        <div class="option-icon">&#128275;</div>
+        <div class="option-title">专业模式</div>
+        <div class="option-desc">绕过权限确认（推荐）</div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--text-gray);padding:0 4px;line-height:1.6;">
+      专业模式将自动批准所有工具调用，适合有经验的开发者。安全模式在每次执行敏感操作前需要手动确认。
+    </div>
+    <div class="bottom-spacer"></div>
+  </div>
+
+  <!-- ====== Page 5: API Config ====== -->
+  <div class="page" id="page5">
+    <div class="step-bar">
+      <div class="step-badge" id="apiStepBadge">5</div>
+      <div class="step-title">API 配置</div>
+      <div class="step-subtitle" id="apiStepSub">第1步/共3步</div>
+    </div>
+    <div class="section-title">选择 API 提供商</div>
+    <div style="display:flex;flex-direction:column;gap:8px;" id="apiOptions">
+      <div class="option-card selected" id="optAnthropic" onclick="selectApiProvider('anthropic')" style="text-align:left;display:flex;align-items:center;gap:12px;padding:14px 16px;">
+        <span class="option-badge not-recommend" style="position:static;">不推荐</span>
+        <div style="flex:1;"><div class="option-title" style="font-size:14px;">Anthropic (Claude)</div><div class="option-desc">官方 API，需海外支付</div></div>
+      </div>
+      <div class="option-card" id="optDeepSeek" onclick="selectApiProvider('deepseek')" style="text-align:left;display:flex;align-items:center;gap:12px;padding:14px 16px;">
+        <span class="option-badge recommend" style="position:static;">推荐</span>
+        <div style="flex:1;"><div class="option-title" style="font-size:14px;">DeepSeek</div><div class="option-desc">国内可直接使用，性价比高</div></div>
+      </div>
+      <div class="option-card" id="optCustom" onclick="selectApiProvider('custom')" style="text-align:left;display:flex;align-items:center;gap:12px;padding:14px 16px;">
+        <div class="option-icon" style="font-size:20px;margin:0;">&#9881;</div>
+        <div style="flex:1;"><div class="option-title" style="font-size:14px;">自定义模型</div><div class="option-desc">兼容 OpenAI 接口的第三方模型</div></div>
+      </div>
+    </div>
+
+    <!-- Anthropic expand -->
+    <div class="api-expand" id="expandAnthropic">
+      <div class="form-group"><label>API Key</label><input type="password" id="anthropicKey" placeholder="sk-ant-api03-..."></div>
+    </div>
+    <!-- DeepSeek expand -->
+    <div class="api-expand open" id="expandDeepSeek">
+      <div class="form-group"><label>API Key</label><input type="password" id="deepseekKey" placeholder="sk-..."></div>
+    </div>
+    <!-- Custom expand -->
+    <div class="api-expand" id="expandCustom">
+      <div class="form-group"><label>API Key</label><input type="password" id="customKey" placeholder="sk-..."></div>
+      <div class="form-group"><label>Base URL</label><input type="text" id="customBaseUrl" placeholder="https://api.example.com/v1" onblur="autoPrependHttps(this)"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Main Model</label><input type="text" id="customMainModel" placeholder="gpt-4o"></div>
+        <div class="form-group"><label>Haiku Model</label><input type="text" id="customHaikuModel" placeholder="gpt-4o-mini"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Sonnet Model</label><input type="text" id="customSonnetModel" placeholder="claude-sonnet-4-20250514"></div>
+        <div class="form-group"><label>Opus Model</label><input type="text" id="customOpusModel" placeholder="claude-opus-4-20250514"></div>
+      </div>
+      <div class="form-group"><label>Subagent Model (可选)</label><input type="text" id="customSubagentModel" placeholder="留空则使用 Main Model"></div>
+    </div>
+    <div class="bottom-spacer"></div>
+  </div>
+
+  <!-- ====== Page 6: Install Config ====== -->
+  <div class="page" id="page6">
+    <div class="step-bar">
+      <div class="step-badge" id="cfgStepBadge">6</div>
+      <div class="step-title">安装配置</div>
+      <div class="step-subtitle" id="cfgStepSub">第2步/共3步</div>
+    </div>
+    <div class="drive-select-wrap">
+      <label>默认安装驱动器</label>
+      <select class="drive-selector" id="cfgDrive" onchange="updatePathPreviews()"></select>
+    </div>
+    <div class="section-title">安装路径预览</div>
+    <div class="path-preview" id="pathPreviewNode">--</div>
+    <div class="path-preview" id="pathPreviewGit" style="margin-top:4px;">--</div>
+    <div class="path-preview" id="pathPreviewNpm" style="margin-top:4px;">--</div>
+    <div class="path-preview" id="pathPreviewTools" style="margin-top:4px;">--</div>
+    <div class="path-preview" id="pathPreviewPython" style="margin-top:4px;">--</div>
+    <div class="path-preview" id="pathPreviewTesseract" style="margin-top:4px;">--</div>
+    <div class="path-preview" id="pathPreviewPip" style="margin-top:4px;">--</div>
+    <div style="margin-top:16px;">
+      <div class="checkbox-row" onclick="toggleCheckExpand('customPaths')">
+        <div class="cb" id="cb_customPaths"></div>
+        <div><div class="cb-label">工具自定义安装位置</div><div class="cb-desc">分别为每个工具选择驱动器</div></div>
+      </div>
+      <div class="expand-section" id="expandCustomPaths">
+        <div class="form-group" style="margin-bottom:8px;"><label>Node.js 驱动器</label><select class="drive-selector" id="driveNode" onchange="updatePathPreviews()"></select></div>
+        <div class="form-group" style="margin-bottom:8px;"><label>Git 驱动器</label><select class="drive-selector" id="driveGit" onchange="updatePathPreviews()"></select></div>
+        <div class="form-group" style="margin-bottom:8px;"><label>npm-global 驱动器</label><select class="drive-selector" id="driveNpm" onchange="updatePathPreviews()"></select></div>
+        <div class="form-group" style="margin-bottom:8px;"><label>cc-tools 驱动器</label><select class="drive-selector" id="driveTools" onchange="updatePathPreviews()"></select></div>
+        <div class="form-group" style="margin-bottom:8px;"><label>Python 驱动器</label><select class="drive-selector" id="drivePython" onchange="updatePathPreviews()"></select></div>
+        <div class="form-group" style="margin-bottom:8px;"><label>Tesseract 驱动器</label><select class="drive-selector" id="driveTesseract" onchange="updatePathPreviews()"></select></div>
+        <div class="form-group" style="margin-bottom:8px;"><label>Pip-packages 驱动器</label><select class="drive-selector" id="drivePip" onchange="updatePathPreviews()"></select></div>
+      </div>
+    </div>
+    <div class="bottom-spacer"></div>
+  </div>
+
+  <!-- ====== Page 7: Install ====== -->
+  <div class="page" id="page7">
+    <div class="step-bar">
+      <div class="step-badge" id="instStepBadge">7</div>
+      <div class="step-title">安装</div>
+      <div class="step-subtitle" id="instStepSub">第3步/共3步</div>
+    </div>
+    <div class="install-trigger">
+      <button class="btn-install" id="btnStartInstall" onclick="startInstall()">
+        <span id="btnInstallText">&#9889; 开始安装</span>
+      </button>
+    </div>
+    <div class="progress-wrap" id="progressWrap" style="display:none;">
+      <div class="progress-label">
+        <span id="progressLabel">准备中...</span>
+        <span id="progressPercent">0 / 0</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%;"></div></div>
+    </div>
+    <div class="terminal" id="terminal"><div class="log-line">等待开始安装...</div></div>
+    <div class="bottom-spacer"></div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Completion Modal -->
+<div class="modal-overlay" id="modalOverlay" style="display:none;">
+  <div class="modal">
+    <div class="check-circle"></div>
+    <h2>安装完成!</h2>
+    <div id="modalContent"></div>
+    <button class="btn-finish" onclick="finishInstall()">完成</button>
+  </div>
+</div>
+
+<!-- Bottom Nav Bar -->
+<div class="nav-bar" id="navBar" style="display:none;">
+  <button class="nav-btn back" id="btnBack" onclick="goBack()">&#8592; 上一步</button>
+  <button class="nav-btn next" id="btnNext" onclick="goNext()">下一步 &#8594;</button>
+</div>
+
+<script>
+// ============ STATE ============
+const state = {
+  isSimple: false,
+  currentPage: 0,
+  drives: [],
+  // Page 2
+  skills: [],
+  allSkillsSelected: true,
+  // Page 3
+  installTools: true,
+  installLogic: true,
+  installCustomLogic: false,
+  customLogicContent: '',
+  // Page 4
+  bypassPermissions: true,
+  // Page 5
+  apiProvider: 'deepseek',
+  apiKey: '',
+  apiBaseUrl: '',
+  customMainModel: '',
+  customHaikuModel: '',
+  customSonnetModel: '',
+  customOpusModel: '',
+  customSubagentModel: '',
+  // Page 6
+  defaultDrive: 'C:',
+  customPaths: false,
+  driveNode: 'C:',
+  driveGit: 'C:',
+  driveNpm: 'C:',
+  driveTools: 'C:',
+  drivePython: 'C:',
+  driveTesseract: 'C:',
+  drivePip: 'C:',
+  // Install
+  installing: false,
+  pollTimer: null,
+};
+
+// Skill definitions
+const SKILLS = [
+  { id:'Superpowers', name:'Superpowers', tag:'系统', disabled:false },
+  { id:'Find Skills', name:'Find Skills', tag:'搜索', disabled:false },
+  { id:'Brainstorming', name:'Brainstorming', tag:'创意', disabled:false },
+  { id:'Executing Plans', name:'Executing Plans', tag:'执行', disabled:false },
+  { id:'Subagent Driven Dev', name:'Subagent Driven Dev', tag:'开发', disabled:false },
+  { id:'Test Driven Dev', name:'Test Driven Dev', tag:'测试', disabled:false },
+  { id:'Writing Plans', name:'Writing Plans', tag:'规划', disabled:false },
+  { id:'Requesting Code Review', name:'Requesting Code Review', tag:'审查', disabled:false },
+  { id:'Receiving Code Review', name:'Receiving Code Review', tag:'审查', disabled:false },
+  { id:'Using Git Worktrees', name:'Using Git Worktrees', tag:'Git', disabled:false },
+  { id:'Code Review', name:'Code Review', tag:'审查', disabled:true },
+  { id:'Security Audit', name:'Security Audit', tag:'安全', disabled:true },
+  { id:'Test Generator', name:'Test Generator', tag:'测试', disabled:true },
+];
+
+// ============ INIT ============
+function init() {
+  const port = window.location.port || '5000';
+  window.API_BASE = `http://localhost:${port}`;
+
+  state.skills = SKILLS.filter(s => !s.disabled).map(s => s.id);
+  state.defaultDrive = 'C:';
+  state.driveNode = state.driveGit = state.driveNpm = state.driveTools = state.drivePython = state.driveTesseract = state.drivePip = 'C:';
+
+  loadDrives();
+  buildSkillList();
+  updateNavBar();
+  setPage(0);
+}
+window.addEventListener('DOMContentLoaded', init);
+
+// ============ API HELPERS ============
+async function apiGet(path) {
+  try {
+    const res = await fetch(`${window.API_BASE}${path}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch(e) {
+    console.error('API GET error:', e);
+    return null;
+  }
+}
+
+async function apiPost(path, data) {
+  try {
+    const res = await fetch(`${window.API_BASE}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch(e) {
+    console.error('API POST error:', e);
+    return null;
+  }
+}
+
+// ============ DRIVES ============
+async function loadDrives() {
+  const drives = await apiGet('/api/drives');
+  if (drives && Array.isArray(drives) && drives.length > 0) {
+    state.drives = drives;
+    state.defaultDrive = drives[0];
+    populateDriveSelectors();
+    updatePathPreviews();
+  } else {
+    state.drives = ['C:', 'D:'];
+    state.defaultDrive = 'C:';
+    populateDriveSelectors();
+  }
+}
+
+function populateDriveSelectors() {
+  const opts = state.drives.map(d => `<option value="${d}">${d}</option>`).join('');
+  const selects = ['envDrive','cfgDrive','driveNode','driveGit','driveNpm','driveTools','drivePython','driveTesseract','drivePip'];
+  selects.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = opts;
+  });
+  if (document.getElementById('envDrive')) document.getElementById('envDrive').value = state.defaultDrive;
+  if (document.getElementById('cfgDrive')) document.getElementById('cfgDrive').value = state.defaultDrive;
+}
+
+function onEnvDriveChange() {
+  state.defaultDrive = document.getElementById('envDrive').value;
+}
+
+// ============ NAVIGATION ============
+function setPage(n) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const pg = document.getElementById('page' + n);
+  if (pg) pg.classList.add('active');
+  state.currentPage = n;
+  updateNavBar();
+
+  // Prepare pages on arrival
+  if (n === 1) detectEnv();
+  if (n === 6) updatePathPreviews();
+  if (n === 5) updateApiSteps();
+  if (n === 6) updateConfigSteps();
+  if (n === 7) updateInstallSteps();
+
+  // Scroll to top
+  document.getElementById('app').scrollIntoView({ behavior: 'smooth' });
+
+  // Simple mode redirects
+  if (state.isSimple && n >= 1 && n <= 4) {
+    // Skip pages 1-4 in simple mode: go directly to page 5
+    if (n > 0 && n <= 4) { setPage(5); return; }
+  }
+}
+
+function updateNavBar() {
+  const bar = document.getElementById('navBar');
+  const btnNext = document.getElementById('btnNext');
+  const btnBack = document.getElementById('btnBack');
+
+  if (state.currentPage === 0 || state.installing) {
+    bar.style.display = 'none';
+    return;
+  }
+
+  bar.style.display = 'flex';
+
+  // Page 7: no Next button, show only Back
+  if (state.currentPage === 7) {
+    btnNext.style.display = 'none';
+  } else {
+    btnNext.style.display = '';
+  }
+
+  btnBack.style.display = '';
+}
+
+function goNext() {
+  const cp = state.currentPage;
+
+  // Validate page 5 (API config)
+  if (cp === 5) {
+    if (!validateApiPage()) return;
+  }
+
+  if (state.isSimple) {
+    if (cp === 0) { setPage(5); return; }
+    if (cp === 5) { setPage(6); return; }
+    if (cp === 6) { setPage(7); return; }
+    return;
+  }
+
+  if (cp < 7) { setPage(cp + 1); }
+}
+
+function goBack() {
+  const cp = state.currentPage;
+
+  if (state.isSimple) {
+    if (cp === 5) { setPage(0); return; }
+    if (cp === 6) { setPage(5); return; }
+    if (cp === 7) { setPage(6); return; }
+    return;
+  }
+
+  if (cp > 0) { setPage(cp - 1); }
+}
+
+// ============ PAGE 0: MODE SELECT ============
+function selectMode(isSimple) {
+  state.isSimple = isSimple;
+  document.getElementById('cardPro').classList.toggle('selected', !isSimple);
+  document.getElementById('cardSimple').classList.toggle('selected', isSimple);
+}
+
+// ============ PAGE 1: ENVIRONMENT DETECTION ============
+function detectEnv() {
+  document.getElementById('statOS').textContent = 'Windows 11 Pro';
+  document.getElementById('statSpace').textContent = '计算中...';
+  document.getElementById('statNode').textContent = '检测中...';
+  document.getElementById('statGit').textContent = '检测中...';
+
+  // Simulate detection - in real usage this would call C# backend
+  setTimeout(() => {
+    const drive = document.getElementById('envDrive')?.value || state.defaultDrive;
+    document.getElementById('statSpace').textContent = drive + ' - 可用空间充足';
+    document.getElementById('statNode').textContent = 'v20.18.0 (将通过安装器安装)';
+    document.getElementById('statGit').textContent = '将通过安装器安装';
+  }, 600);
+}
+
+// ============ PAGE 2: SKILLS ============
+function buildSkillList() {
+  const container = document.getElementById('skillList');
+  let html = '';
+  SKILLS.forEach((s, i) => {
+    const checked = !s.disabled && state.skills.includes(s.id);
+    html += `
+      <div class="skill-row ${s.disabled ? 'disabled' : ''}" onclick="${s.disabled ? '' : `toggleSkill('${s.id}', this)`}">
+        <div class="skill-check ${checked ? 'checked' : ''}"></div>
+        <span class="skill-name">${s.name}</span>
+        <span class="skill-tag">${s.tag}</span>
+      </div>`;
+  });
+  container.innerHTML = html;
+  updateSkillCount();
+}
+
+function toggleSkill(id, rowEl) {
+  const idx = state.skills.indexOf(id);
+  if (idx >= 0) {
+    state.skills.splice(idx, 1);
+    rowEl.querySelector('.skill-check').classList.remove('checked');
+  } else {
+    state.skills.push(id);
+    rowEl.querySelector('.skill-check').classList.add('checked');
+  }
+  state.allSkillsSelected = (state.skills.length === SKILLS.filter(s => !s.disabled).length);
+  document.getElementById('pillSelectAll').classList.toggle('active', state.allSkillsSelected);
+  updateSkillCount();
+}
+
+function toggleSelectAll() {
+  const enabled = SKILLS.filter(s => !s.disabled).map(s => s.id);
+  if (state.allSkillsSelected) {
+    state.skills = [];
+    state.allSkillsSelected = false;
+    document.getElementById('pillSelectAll').classList.remove('active');
+  } else {
+    state.skills = [...enabled];
+    state.allSkillsSelected = true;
+    document.getElementById('pillSelectAll').classList.add('active');
+  }
+  buildSkillList();
+  updateSkillCount();
+}
+
+function updateSkillCount() {
+  document.getElementById('skillCount').textContent = state.skills.length;
+}
+
+// ============ PAGE 3: TOOLS & LOGIC ============
+function toggleCheck(key) {
+  state[key] = !state[key];
+  const cb = document.getElementById('cb_' + key);
+  if (cb) cb.classList.toggle('checked', state[key]);
+}
+
+function toggleCheckExpand(key) {
+  state[key] = !state[key];
+  if (key === 'installCustomLogic') state.installCustomLogic = !state.installCustomLogic;
+  if (key === 'customPaths') state.customPaths = !state.customPaths;
+  const cb = document.getElementById('cb_' + key);
+  if (cb) cb.classList.toggle('checked', state[key]);
+  const expand = document.getElementById('expand' + (key === 'installCustomLogic' ? 'CustomLogic' : 'CustomPaths'));
+  if (expand) expand.classList.toggle('open', state[key]);
+  if (key === 'customPaths') updatePathPreviews();
+}
+
+// ============ PAGE 4: SECURITY ============
+function selectSecurity(mode) {
+  state.bypassPermissions = (mode === 'pro');
+  document.getElementById('optSafe').classList.toggle('selected', mode === 'safe');
+  document.getElementById('optPro').classList.toggle('selected', mode === 'pro');
+}
+
+// ============ PAGE 5: API CONFIG ============
+function selectApiProvider(provider) {
+  state.apiProvider = provider;
+  document.getElementById('optAnthropic').classList.toggle('selected', provider === 'anthropic');
+  document.getElementById('optDeepSeek').classList.toggle('selected', provider === 'deepseek');
+  document.getElementById('optCustom').classList.toggle('selected', provider === 'custom');
+
+  document.getElementById('expandAnthropic').classList.toggle('open', provider === 'anthropic');
+  document.getElementById('expandDeepSeek').classList.toggle('open', provider === 'deepseek');
+  document.getElementById('expandCustom').classList.toggle('open', provider === 'custom');
+}
+
+function autoPrependHttps(input) {
+  let val = input.value.trim();
+  if (val && !/^https?:\/\//i.test(val)) {
+    input.value = 'https://' + val;
+  }
+}
+
+function validateApiPage() {
+  const p = state.apiProvider;
+  if (p === 'anthropic') {
+    const key = document.getElementById('anthropicKey').value.trim();
+    if (!key) { showToast('请输入 Anthropic API Key'); return false; }
+    state.apiKey = key;
+  } else if (p === 'deepseek') {
+    const key = document.getElementById('deepseekKey').value.trim();
+    if (!key) { showToast('请输入 DeepSeek API Key'); return false; }
+    state.apiKey = key;
+  } else if (p === 'custom') {
+    const key = document.getElementById('customKey').value.trim();
+    const url = document.getElementById('customBaseUrl').value.trim();
+    if (!key) { showToast('请输入 API Key'); return false; }
+    if (!url) { showToast('请输入 Base URL'); return false; }
+    if (!/^https?:\/\//i.test(url)) { showToast('Base URL 必须以 https:// 开头'); return false; }
+    state.apiKey = key;
+    state.apiBaseUrl = url;
+    state.customMainModel = document.getElementById('customMainModel').value.trim();
+    state.customHaikuModel = document.getElementById('customHaikuModel').value.trim();
+    state.customSonnetModel = document.getElementById('customSonnetModel').value.trim();
+    state.customOpusModel = document.getElementById('customOpusModel').value.trim();
+    state.customSubagentModel = document.getElementById('customSubagentModel').value.trim();
+  }
+  return true;
+}
+
+function updateApiSteps() {
+  if (state.isSimple) {
+    document.getElementById('apiStepBadge').textContent = '1';
+    document.getElementById('apiStepSub').textContent = '第1步/共3步';
+  } else {
+    document.getElementById('apiStepBadge').textContent = '5';
+    document.getElementById('apiStepSub').textContent = '第1步/共3步';
+  }
+}
+
+// ============ PAGE 6: INSTALL CONFIG ============
+function updateConfigSteps() {
+  if (state.isSimple) {
+    document.getElementById('cfgStepBadge').textContent = '2';
+    document.getElementById('cfgStepSub').textContent = '第2步/共3步';
+  } else {
+    document.getElementById('cfgStepBadge').textContent = '6';
+    document.getElementById('cfgStepSub').textContent = '第2步/共3步';
+  }
+}
+
+function updatePathPreviews() {
+  const drive = state.customPaths ? null : (document.getElementById('cfgDrive')?.value || state.defaultDrive);
+  function d(selId) {
+    if (!state.customPaths) return drive;
+    const el = document.getElementById(selId);
+    return el ? el.value : state.defaultDrive;
+  }
+  const nodeD = d('driveNode');
+  const gitD = d('driveGit');
+  const npmD = d('driveNpm');
+  const toolsD = d('driveTools');
+  const pyD = d('drivePython');
+  const tesD = d('driveTesseract');
+  const pipD = d('drivePip');
+
+  document.getElementById('pathPreviewNode').textContent = `${nodeD}\\Claude Code tool\\NodeJS`;
+  document.getElementById('pathPreviewGit').textContent = `${gitD}\\Claude Code tool\\Git`;
+  document.getElementById('pathPreviewNpm').textContent = `${npmD}\\Claude Code tool\\npm-global`;
+  document.getElementById('pathPreviewTools').textContent = `${toolsD}\\Claude Code tool\\cc-tools`;
+  document.getElementById('pathPreviewPython').textContent = `${pyD}\\Claude Code tool\\Python312`;
+  document.getElementById('pathPreviewTesseract').textContent = `${tesD}\\Claude Code tool\\Tesseract-OCR`;
+  document.getElementById('pathPreviewPip').textContent = `${pipD}\\Python-packages`;
+}
+
+// ============ PAGE 7: INSTALL ============
+function updateInstallSteps() {
+  if (state.isSimple) {
+    document.getElementById('instStepBadge').textContent = '3';
+    document.getElementById('instStepSub').textContent = '第3步/共3步';
+  } else {
+    document.getElementById('instStepBadge').textContent = '7';
+    document.getElementById('instStepSub').textContent = '第3步/共3步';
+  }
+}
+
+function getDrive(selId) {
+  if (!state.customPaths) return document.getElementById('cfgDrive')?.value || state.defaultDrive;
+  const el = document.getElementById(selId);
+  return el ? el.value : state.defaultDrive;
+}
+
+function buildInstallSettings() {
+  const p = state.apiProvider;
+  let apiKey = state.apiKey;
+  let apiBaseUrl = state.apiBaseUrl || '';
+  let cmm = '', chm = '', csm = '', com = '', csubm = '';
+
+  // Capture from DOM in case state wasn't synced
+  if (p === 'anthropic') {
+    apiKey = document.getElementById('anthropicKey').value.trim();
+  } else if (p === 'deepseek') {
+    apiKey = document.getElementById('deepseekKey').value.trim();
+  } else if (p === 'custom') {
+    apiKey = document.getElementById('customKey').value.trim();
+    apiBaseUrl = document.getElementById('customBaseUrl').value.trim();
+    cmm = document.getElementById('customMainModel').value.trim();
+    chm = document.getElementById('customHaikuModel').value.trim();
+    csm = document.getElementById('customSonnetModel').value.trim();
+    com = document.getElementById('customOpusModel').value.trim();
+    csubm = document.getElementById('customSubagentModel').value.trim();
+  }
+
+  return {
+    IsSimple: state.isSimple,
+    Drive: document.getElementById('cfgDrive')?.value || state.defaultDrive,
+    NodePath: `${getDrive('driveNode')}\\Claude Code tool\\NodeJS`,
+    GitPath: `${getDrive('driveGit')}\\Claude Code tool\\Git`,
+    NpmPrefix: `${getDrive('driveNpm')}\\Claude Code tool\\npm-global`,
+    ToolsPath: `${getDrive('driveTools')}\\Claude Code tool\\cc-tools`,
+    PythonPath: `${getDrive('drivePython')}\\Claude Code tool\\Python312`,
+    TesseractPath: `${getDrive('driveTesseract')}\\Claude Code tool\\Tesseract-OCR`,
+    PipPath: `${getDrive('drivePip')}\\Python-packages`,
+    InstallTools: state.installTools,
+    InstallLogic: state.installLogic,
+    InstallCustomLogic: state.installCustomLogic,
+    CustomLogicContent: state.installCustomLogic ? (document.getElementById('expandCustomLogic')?.querySelector('textarea')?.value || '') : '',
+    Skills: state.skills,
+    BypassPermissions: state.bypassPermissions,
+    ApiProvider: p,
+    ApiKey: apiKey,
+    ApiBaseUrl: apiBaseUrl,
+    CustomMainModel: cmm,
+    CustomHaikuModel: chm,
+    CustomSonnetModel: csm,
+    CustomOpusModel: com,
+    CustomSubagentModel: csubm,
+    MaxThinking: true,
+    NoUpdate: false,
+  };
+}
+
+async function startInstall() {
+  if (state.installing) return;
+
+  const settings = buildInstallSettings();
+  state.installing = true;
+
+  const btn = document.getElementById('btnStartInstall');
+  btn.disabled = true;
+  document.getElementById('btnInstallText').innerHTML = '<span class="spinner"></span>安装中...';
+
+  document.getElementById('progressWrap').style.display = 'block';
+  document.getElementById('terminal').innerHTML = '<div class="log-line">正在发送安装请求...</div>';
+
+  updateNavBar();
+
+  const result = await apiPost('/api/install', settings);
+  if (!result) {
+    document.getElementById('terminal').innerHTML += '<div class="log-line error">错误: 无法连接到后端服务</div>';
+    state.installing = false;
+    btn.disabled = false;
+    document.getElementById('btnInstallText').innerHTML = '&#9889; 重新安装';
+    updateNavBar();
+    return;
+  }
+
+  appendLog('success', '安装请求已发送，开始监控进度...');
+  pollProgress();
+}
+
+function pollProgress() {
+  state.pollTimer = setInterval(async () => {
+    const data = await apiGet('/api/progress');
+    if (!data) {
+      appendLog('error', '获取进度失败，正在重试...');
+      return;
+    }
+
+    // Display logs
+    if (data.logs) {
+      const existing = document.getElementById('terminal').innerText;
+      const newLogs = data.logs;
+      if (newLogs && newLogs !== existing) {
+        const lines = newLogs.split('\n');
+        const terminal = document.getElementById('terminal');
+        // Only add new lines
+        const currentLineCount = terminal.querySelectorAll('.log-line').length;
+        for (let i = currentLineCount; i < lines.length; i++) {
+          const line = lines[i];
+          if (line.trim()) {
+            let cls = 'log-line';
+            const lower = line.toLowerCase();
+            if (lower.includes('error') || lower.includes('fail') || lower.includes('exception')) cls += ' error';
+            else if (lower.includes('warn')) cls += ' warn';
+            else if (lower.includes('success') || lower.includes('complete') || lower.includes('done')) cls += ' success';
+            appendLogDirect(cls, line);
+          }
+        }
+      }
+    }
+
+    // Update progress
+    if (data.percent !== undefined && data.total) {
+      const pct = Math.round((data.percent / data.total) * 100);
+      document.getElementById('progressFill').style.width = pct + '%';
+      document.getElementById('progressPercent').textContent = data.percent + ' / ' + data.total;
+      document.getElementById('progressLabel').textContent = '安装中...';
+    }
+
+    // Check completion
+    if (data.done) {
+      clearInterval(state.pollTimer);
+      state.pollTimer = null;
+      state.installing = false;
+      document.getElementById('progressFill').style.width = '100%';
+      document.getElementById('progressPercent').textContent = data.total + ' / ' + data.total;
+      document.getElementById('progressLabel').textContent = '完成!';
+      updateNavBar();
+      showCompletionModal();
+    }
+
+    if (data.error) {
+      appendLog('error', '错误: ' + data.error);
+    }
+  }, 500);
+}
+
+function appendLog(cls, text) {
+  const terminal = document.getElementById('terminal');
+  const div = document.createElement('div');
+  div.className = 'log-line ' + (cls || '');
+  div.textContent = text;
+  terminal.appendChild(div);
+  terminal.scrollTop = terminal.scrollHeight;
+}
+
+function appendLogDirect(cls, text) {
+  const terminal = document.getElementById('terminal');
+  const div = document.createElement('div');
+  div.className = cls || 'log-line';
+  div.textContent = text;
+  terminal.appendChild(div);
+  terminal.scrollTop = terminal.scrollHeight;
+}
+
+// ============ COMPLETION MODAL ============
+function showCompletionModal() {
+  const settings = buildInstallSettings();
+  const drive = settings.Drive;
+
+  let toolsHtml = '';
+  if (settings.InstallTools) {
+    toolsHtml += `<div class="installed-item"><span class="item-name">Node.js</span><span class="item-arrow">→</span><span class="item-path">${settings.NodePath}</span></div>`;
+    toolsHtml += `<div class="installed-item"><span class="item-name">Git</span><span class="item-arrow">→</span><span class="item-path">${settings.GitPath}</span></div>`;
+    toolsHtml += `<div class="installed-item"><span class="item-name">Python 3.12</span><span class="item-arrow">→</span><span class="item-path">${settings.PythonPath}</span></div>`;
+    toolsHtml += `<div class="installed-item"><span class="item-name">Tesseract OCR</span><span class="item-arrow">→</span><span class="item-path">${settings.TesseractPath}</span></div>`;
+    toolsHtml += `<div class="installed-item"><span class="item-name">Nircmd</span><span class="item-arrow">→</span><span class="item-path">${settings.ToolsPath}</span></div>`;
+  }
+
+  let skillsHtml = '';
+  settings.Skills.forEach(s => {
+    skillsHtml += `<div class="installed-item"><span class="item-name">${s}</span><span class="item-arrow">→</span><span class="item-path">${settings.ToolsPath}\\skills\\${s.toLowerCase().replace(/\s+/g,'-')}</span></div>`;
+  });
+
+  let configHtml = '';
+  configHtml += `<div class="installed-item"><span class="item-name">API Provider</span><span class="item-arrow">→</span><span class="item-path">${settings.ApiProvider}</span></div>`;
+  configHtml += `<div class="installed-item"><span class="item-name">安全模式</span><span class="item-arrow">→</span><span class="item-path">${settings.BypassPermissions ? '专业模式' : '安全模式'}</span></div>`;
+  configHtml += `<div class="installed-item"><span class="item-name">npm-global</span><span class="item-arrow">→</span><span class="item-path">${settings.NpmPrefix}</span></div>`;
+  configHtml += `<div class="installed-item"><span class="item-name">Pip Packages</span><span class="item-arrow">→</span><span class="item-path">${settings.PipPath}</span></div>`;
+
+  let html = '';
+  if (toolsHtml) html += `<div class="installed-section"><h3>已安装工具</h3>${toolsHtml}</div>`;
+  if (skillsHtml) html += `<div class="installed-section"><h3>已安装 Skills</h3>${skillsHtml}</div>`;
+  html += `<div class="installed-section"><h3>配置</h3>${configHtml}</div>`;
+
+  document.getElementById('modalContent').innerHTML = html;
+  document.getElementById('modalOverlay').style.display = 'flex';
+}
+
+function finishInstall() {
+  document.getElementById('modalOverlay').style.display = 'none';
+  // Optionally close the window or go back to welcome
+  setPage(0);
+  if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; }
+  state.installing = false;
+  document.getElementById('btnInstallText').innerHTML = '&#9889; 开始安装';
+  document.getElementById('btnStartInstall').disabled = false;
+  document.getElementById('progressWrap').style.display = 'none';
+  document.getElementById('terminal').innerHTML = '<div class="log-line">等待开始安装...</div>';
+  document.getElementById('modalOverlay').style.display = 'none';
+  updateNavBar();
+}
+
+// ============ TOAST ============
+let toastTimer = null;
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { toast.classList.remove('show'); }, 2500);
+}
+
+// ============ SYNC TEXTAREA ============
+document.addEventListener('DOMContentLoaded', () => {
+  // Sync custom logic textarea
+  const textarea = document.querySelector('#expandCustomLogic textarea');
+  if (textarea) {
+    textarea.addEventListener('input', () => {
+      state.customLogicContent = textarea.value;
+    });
+  }
+});
+</script>
+</body>
+</html>
