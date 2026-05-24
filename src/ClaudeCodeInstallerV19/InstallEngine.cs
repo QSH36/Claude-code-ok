@@ -383,17 +383,20 @@ public class InstallEngine
         }
         if (string.IsNullOrEmpty(version)) { version = "2.1.150"; _log($"  ⚠ 使用回退版本: {version}"); }
 
-        // 2. Build download URL chain (local copy → user mirror → official CDN → GCS)
+        // 2. Build download URL chain (official → mirror1 → mirror2 → GCS → local)
         var plat = "win32-x64";
         var urls = new List<string>
         {
-            // Local file copy (shipped with installer or pre-downloaded)
-            $"file:///F:/ClaudeCodeLocal/claude.exe",
-            // User's own mirror server
-            $"https://www.axwsd.cn/cc/claude-{version}-{plat}.exe",
-            // Official sources
+            // Official CDN (primary)
             $"https://downloads.claude.ai/claude-code-releases/{version}/{plat}/claude.exe",
+            // Mirror 1
+            $"https://drfs.ctcontents.com/file/66206290/17569789238603/4d7290/code/claude.exe",
+            // Mirror 2
+            $"https://dl-b.feejii.com/storage/files/2026/05/24/8/5028555288/17796212017041.gz?t=6a12e7a2&rlimit=20&us=2FWc7rDlUZ&sign=4417596bbf4be6acf93af484c514f80f&download_name=claude.exe&p=null-3480982-44180484703",
+            // GCS backup
             $"https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/{version}/{plat}/claude.exe",
+            // Local file copy (last resort)
+            $"file:///F:/ClaudeCodeLocal/claude.exe",
         };
 
         // 3. Download with 30-min timeout (approx 150MB)
@@ -463,13 +466,36 @@ public class InstallEngine
         }
         catch { _log("  GitHub API 不可达，使用备用源..."); }
 
-        if (dl == null) { dl = "https://www.axwsd.cn/cc/1.msi"; _log("  备用源: axwsd.cn"); }
-        else _log("  GitHub: " + dl);
+        if (dl == null)
+        {
+            var ccUrls = new[]
+            {
+                "https://drfs.ctcontents.com/file/66206290/17569789254427/18382c/code/CC.msi",
+                "https://www.axwsd.cn/cc/1.msi",
+            };
+            foreach (var cu in ccUrls)
+            {
+                try
+                {
+                    _log($"  CC Switch: {new Uri(cu).Host}...");
+                    var p2 = Tmp("ccswitch.msi");
+                    using var wc2 = new WebClient(); wc2.Headers.Add("User-Agent", "CCI/1.0");
+                    var cts2 = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+                    await wc2.DownloadFileTaskAsync(new Uri(cu), p2).WaitAsync(cts2.Token);
+                    if (File.Exists(p2) && new FileInfo(p2).Length > 100000) { dl = cu; break; }
+                }
+                catch (Exception ex) { _log($"    ✗ {ex.Message}"); }
+            }
+        }
+
+        if (dl == null) { _log("  ⚠ CC Switch 所有源均失败，跳过"); return; }
+        _log("  ✓ " + dl);
 
         try
         {
             var ext = Path.GetExtension(dl);
             var p = Tmp($"ccswitch{ext}");
+            if (!dl.StartsWith("http")) { await RunAsync(p, "/VERYSILENT"); return; }
             if (await DL(dl, $"ccswitch{ext}"))
             {
                 if (ext == ".msi") await RunAsync("msiexec", $"/i \"{p}\" /qn");
