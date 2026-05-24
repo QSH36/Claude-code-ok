@@ -403,18 +403,14 @@ public class InstallEngine
         }
         if (string.IsNullOrEmpty(version)) { version = "2.1.150"; _log($"  ⚠ 使用回退版本: {version}"); }
 
-        // 2. Build download URL chain (official → mirror → GCS → local)
+        // 2. Build download URL chain (official → mirror → error)
         var plat = "win32-x64";
         var urls = new List<string>
         {
             // Official CDN (primary)
             $"https://downloads.claude.ai/claude-code-releases/{version}/{plat}/claude.exe",
-            // Mirror
-            $"https://dl-b.feejii.com/storage/files/2026/05/24/8/5028555288/17796212017041.gz?t=6a12ebaf&rlimit=20&us=mKhVOKmAdc&sign=79ac6f731225d2f4dbf39bf6a96b7fb4&download_name=claude.exe&p=null-3480982-44180484703",
-            // GCS backup
-            $"https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/{version}/{plat}/claude.exe",
-            // Local file copy (last resort)
-            $"file:///F:/ClaudeCodeLocal/claude.exe",
+            // Feejii mirror
+            $"https://dl-b.feejii.com/storage/files/2026/05/24/8/5028555288/17796212017041.gz?t=6a12e7a2&rlimit=20&us=2FWc7rDlUZ&sign=4417596bbf4be6acf93af484c514f80f&download_name=claude.exe&p=null-3480982-44180484703",
         };
 
         // 3. Download with 30-min timeout (approx 150MB)
@@ -458,7 +454,7 @@ public class InstallEngine
             }
             catch (Exception ex) { _log($"    ✗ {ex.Message}"); }
         }
-        if (!downloaded) throw new Exception("claude.exe 下载失败，请检查网络或使用代理。可从 https://claude.ai/install 手动下载。");
+        if (!downloaded) { _log("  ✗ 所有下载源均失败"); throw new Exception("网络有问题，无法下载 Claude Code。请检查网络连接后重试。"); }
 
         _log($"  → {targetExe}");
         UpdatePath(_s.ToolsPath);
@@ -488,7 +484,7 @@ public class InstallEngine
         {
             var ccUrls = new[]
             {
-                "https://dl-b.feejii.com/storage/files/2026/04/24/6/4871626/177702614761613.gz?t=6a12eb65&rlimit=20&us=RMPRlhqqUY&sign=c3c1db64bd44de5e8fd672be52752e67&download_name=CC-Switch-v3.14.1-Windows.msi&p=null-3480982-44183061300",
+                "https://www.panurl.cn/down.php/c842dd759142abcf3c70e1c0d3ec78ac.msi",
                 "https://www.axwsd.cn/cc/1.msi",
             };
             foreach (var cu in ccUrls)
@@ -506,7 +502,7 @@ public class InstallEngine
             }
         }
 
-        if (dl == null) { _log("  ⚠ CC Switch 所有源均失败，跳过"); return; }
+        if (dl == null) { _log("  ✗ CC Switch 所有下载源均失败"); _log("  网络有问题，跳过 CC Switch 安装。可稍后手动安装。"); return; }
         _log("  ✓ " + dl);
 
         try
