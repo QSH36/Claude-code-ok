@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Code Installer - Shimizu</title>
+<style>
+:root {
+  --brand: #0066FF; --brand-end: #4DA3FF; --green: #00B84D; --orange: #FF6B35;
+  --text: #1A1A2E; --text2: #6B7280; --card: #FFFFFF;
+  --transition: cubic-bezier(.34,1.56,.64,1);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Microsoft YaHei UI', 'PingFang SC', sans-serif;
+  background: #F0F2F5; color: var(--text); overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Floating orbs */
+.bg-orbs { position:fixed; inset:0; pointer-events:none; z-index:0; overflow:hidden; }
+.orb { position:absolute; border-radius:50%; filter:blur(100px); opacity:.3; animation:float 16s ease-in-out infinite; }
+.orb:nth-child(1) { width:500px; height:500px; background:#0066FF; top:-15%; left:-10%; }
+.orb:nth-child(2) { width:400px; height:400px; background:#8B5CF6; top:50%; right:-10%; animation-delay:-5s; }
+.orb:nth-child(3) { width:350px; height:350px; background:#00B84D; bottom:-15%; left:30%; animation-delay:-10s; }
+@keyframes float {
+  0%,100% { transform:translate(0,0) scale(1); }
+  33% { transform:translate(40px,-40px) scale(1.08); }
+  66% { transform:translate(-30px,20px) scale(.94); }
+}
+
+/* Header */
+.header {
+  position:fixed; top:0; left:0; right:0; z-index:100;
+  background:rgba(255,255,255,.72); backdrop-filter:blur(20px) saturate(180%);
+  -webkit-backdrop-filter:blur(20px) saturate(180%);
+  border-bottom:1px solid rgba(0,0,0,.06); padding:14px 32px;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.logo { font-size:18px; font-weight:800; letter-spacing:-.5px; color:var(--text); }
+.logo span { color:var(--brand); }
+.header .ver { font-size:11px; color:var(--text2); background:#F0F0F5; padding:4px 10px; border-radius:12px; }
+
+/* Hero */
+.hero {
+  position:relative; z-index:1;
+  text-align:center; padding:140px 24px 60px;
+}
+.hero .badge {
+  display:inline-block; background:linear-gradient(135deg,#EEF2FF,#E0E7FF);
+  color:var(--brand); font-size:11px; font-weight:700; padding:5px 14px;
+  border-radius:20px; letter-spacing:1px; margin-bottom:20px;
+}
+.hero h1 {
+  font-size:48px; font-weight:800; letter-spacing:-1.5px; line-height:1.15;
+  background:linear-gradient(135deg,var(--brand),#3B82F6,var(--brand-end));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  background-clip:text; margin-bottom:16px;
+}
+.hero .sub {
+  font-size:18px; color:var(--text2); line-height:1.6; max-width:500px; margin:0 auto 36px;
+}
+
+/* Download button */
+.btn-dl {
+  display:inline-block; padding:16px 48px; border-radius:14px;
+  background:linear-gradient(135deg,var(--brand),#3B82F6); color:#fff;
+  font-size:17px; font-weight:700; border:none; cursor:pointer;
+  transition:all .3s var(--transition); position:relative; overflow:hidden;
+  text-decoration:none; box-shadow:0 8px 30px rgba(0,102,255,.25);
+}
+.btn-dl:hover { transform:translateY(-3px); box-shadow:0 14px 40px rgba(0,102,255,.35); }
+.btn-dl::after {
+  content:''; position:absolute; top:-50%; left:-50%; width:200%; height:200%;
+  background:linear-gradient(45deg,transparent 40%,rgba(255,255,255,.15) 50%,transparent 60%);
+  animation:shimmer 3s infinite;
+}
+@keyframes shimmer { 0%{transform:translateX(-100%) rotate(45deg)} 100%{transform:translateX(100%) rotate(45deg)} }
+
+/* Options panel */
+.options-panel {
+  max-width:420px; margin:24px auto 0;
+  overflow:hidden; max-height:0; opacity:0;
+  transition:max-height .5s var(--transition),opacity .4s ease,margin .4s ease;
+}
+.options-panel.show { max-height:400px; opacity:1; margin-top:24px; }
+.opt-item {
+  display:flex; align-items:center; gap:14px; padding:14px 20px;
+  background:#fff; border-radius:12px; margin-bottom:10px; cursor:pointer;
+  transition:all .25s ease; border:2px solid transparent;
+  text-decoration:none; color:var(--text); box-shadow:0 2px 12px rgba(0,0,0,.04);
+}
+.opt-item:hover { border-color:var(--brand); transform:translateX(4px); box-shadow:0 4px 20px rgba(0,102,255,.1); }
+.opt-item .opt-icon { font-size:24px; width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.opt-item .opt-icon.local { background:#EEF2FF; }
+.opt-item .opt-icon.github { background:#F3F0FF; }
+.opt-item .opt-icon.cloud { background:#ECFDF5; }
+.opt-item .opt-info { flex:1; }
+.opt-item .opt-name { font-weight:700; font-size:14px; }
+.opt-item .opt-desc { font-size:11px; color:var(--text2); margin-top:2px; }
+
+/* Features */
+.features {
+  position:relative; z-index:1;
+  max-width:900px; margin:0 auto; padding:60px 24px 80px;
+  display:grid; grid-template-columns:repeat(3,1fr); gap:20px;
+}
+@media (max-width:700px) { .features { grid-template-columns:1fr; } }
+.feat-card {
+  background:#fff; border-radius:16px; padding:28px 24px;
+  box-shadow:0 2px 16px rgba(0,0,0,.04); transition:all .3s var(--transition);
+}
+.feat-card:hover { transform:translateY(-4px); box-shadow:0 8px 30px rgba(0,0,0,.08); }
+.feat-card .fc-icon { font-size:32px; margin-bottom:12px; }
+.feat-card h3 { font-size:16px; font-weight:700; margin-bottom:6px; }
+.feat-card p { font-size:13px; color:var(--text2); line-height:1.6; }
+
+/* Footer */
+.footer {
+  position:relative; z-index:1;
+  text-align:center; padding:40px 24px; border-top:1px solid rgba(0,0,0,.06);
+}
+.footer p { font-size:12px; color:var(--text2); }
+
+/* Toast */
+.toast {
+  position:fixed; bottom:40px; left:50%; transform:translateX(-50%); z-index:999;
+  background:#1A1B26; color:#fff; padding:12px 24px; border-radius:10px;
+  font-size:13px; font-weight:600; animation:toastIn .3s var(--transition);
+  box-shadow:0 8px 30px rgba(0,0,0,.2);
+}
+@keyframes toastIn { from{opacity:0;transform:translateX(-50%) translateY(20px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+</style>
+</head>
+<body>
+
+<div class="bg-orbs">
+  <div class="orb"></div><div class="orb"></div><div class="orb"></div>
+</div>
+
+<header class="header">
+  <div class="logo">Claude Code <span>Installer</span></div>
+  <div class="ver">v1.0.6</div>
+</header>
+
+<section class="hero">
+  <div class="badge">SHIMIZU</div>
+  <h1>Claude Code<br>一键安装器</h1>
+  <p class="sub">Windows 上最简单的方式安装 Claude Code。双击 · 点几下 · 完成。</p>
+  <button class="btn-dl" onclick="toggleOptions()" id="dlBtn">立即下载</button>
+  <div class="options-panel" id="optPanel">
+    <a class="opt-item" href="https://fj.ly93.cc/478/44213234646/ClaudeCodeInstaller.exe" onclick="track('local')">
+      <div class="opt-icon local">📥</div>
+      <div class="opt-info"><div class="opt-name">本地下载</div><div class="opt-desc">高速国内节点，推荐</div></div>
+    </a>
+    <a class="opt-item" href="https://github.com/QSH36/Claude-code-ok/releases/tag/v1" target="_blank" onclick="track('github')">
+      <div class="opt-icon github">🐙</div>
+      <div class="opt-info"><div class="opt-name">GitHub</div><div class="opt-desc">Release 页面，含历史版本</div></div>
+    </a>
+    <a class="opt-item" href="https://share.feijipan.com/s/lWbTsVzX" target="_blank" onclick="track('cloud')">
+      <div class="opt-icon cloud">☁️</div>
+      <div class="opt-info"><div class="opt-name">云盘下载</div><div class="opt-desc">飞机盘，备用下载</div></div>
+    </a>
+  </div>
+</section>
+
+<section class="features">
+  <div class="feat-card">
+    <div class="fc-icon">🚀</div>
+    <h3>一键安装</h3>
+    <p>双击运行，选盘符，点安装。Node.js、Git、Claude Code 全部自动配置。</p>
+  </div>
+  <div class="feat-card">
+    <div class="fc-icon">🌏</div>
+    <h3>国内优化</h3>
+    <p>内置多源镜像链，官方源不可用自动切换。不挑网络，不挑环境。</p>
+  </div>
+  <div class="feat-card">
+    <div class="fc-icon">🎨</div>
+    <h3>精美界面</h3>
+    <p>现代化 HTML 界面，流线型动画。专业/小白双模式，各取所需。</p>
+  </div>
+  <div class="feat-card">
+    <div class="fc-icon">🔧</div>
+    <h3>自定义模型</h3>
+    <p>支持 Anthropic、DeepSeek 以及任意兼容 API。填入 Key 即用。</p>
+  </div>
+  <div class="feat-card">
+    <div class="fc-icon">📦</div>
+    <h3>Skills 集市</h3>
+    <p>13 款精选 Skills 一键安装。Superpowers、文档处理、代码审查等。</p>
+  </div>
+  <div class="feat-card">
+    <div class="fc-icon">🛡️</div>
+    <h3>开源透明</h3>
+    <p>源码完全开放，MIT 协议。从构建到安装，每一步都可审计。</p>
+  </div>
+</section>
+
+<footer class="footer">
+  <p>Shimizu © 2026 · MIT License · 本站不收集任何数据</p>
+</footer>
+
+<div id="toastContainer"></div>
+
+<script>
+function toggleOptions() {
+  const panel = document.getElementById('optPanel');
+  panel.classList.toggle('show');
+  const btn = document.getElementById('dlBtn');
+  btn.textContent = panel.classList.contains('show') ? '选择下载方式' : '立即下载';
+}
+
+function track(type) {
+  const names = { local:'本地下载', github:'GitHub', cloud:'云盘下载' };
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div'); t.className='toast';
+  t.textContent = '正在跳转到 ' + (names[type]||type) + '...';
+  c.appendChild(t);
+  setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(()=>t.remove(),300); }, 2000);
+}
+</script>
+</body>
+</html>
