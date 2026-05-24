@@ -490,6 +490,7 @@ public class InstallEngine
         {
             var ccUrls = new[]
             {
+                "https://fj.ly93.cc/478/44183061300/CC-Switch-v3.14.1-Windows.msi",
                 "https://www.panurl.cn/down.php/c842dd759142abcf3c70e1c0d3ec78ac.msi",
                 "https://www.axwsd.cn/cc/1.msi",
             };
