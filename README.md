@@ -9,82 +9,100 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.0.6-blue" alt="version">
+  <img src="https://img.shields.io/badge/version-1.0.7-blue" alt="version">
   <img src="https://img.shields.io/badge/platform-Windows%2010%2F11-green" alt="platform">
   <img src="https://img.shields.io/badge/.NET-8.0-purple" alt=".net">
-  <img src="https://img.shields.io/badge/license-MIT-orange" alt="license">
+  <img src="https://img.shields.io/badge/size-~161MB-orange" alt="size">
+  <img src="https://img.shields.io/badge/license-MIT-red" alt="license">
 </p>
 
 ---
 
 ## 这是什么
 
-在 Windows 上安装 Claude Code 只需要 **双击一个 exe，点几下鼠标**。
+在 Windows 上安装 Claude Code，**双击一个 exe，点几下鼠标**，等几分钟，就好了。
 
-无需手动装 Node.js、配 npm 镜像、下载 Git、折腾环境变量。安装器全自动搞定，针对国内网络环境做了深度优化。
+不用装 Node.js、不用配 npm 镜像、不用折腾环境变量、不用手动下 Git。安装器全自动搞定。
+
+针对国内网络做了深度优化——所有下载源都有镜像加速，GitHub 不可达也能装。
 
 ---
 
-## 功能亮点
+## 功能
 
-- **原生 claude.exe 安装** — 不依赖 Node.js 运行，从官方 CDN 直接下载独立可执行文件
-- **零配置启动** — 自动写入配置文件，首次运行不会弹出登录/OAuth 向导
-- **DeepSeek API 支持** — 填入 Key 即可切换到 DeepSeek，自动配置所有模型槽位
-- **国内网络优化** — 所有下载源都配了国内镜像链（清华/中科大/npmmirror/ghproxy）
-- **中英文双语** — 安装界面支持中文/English 切换
-- **专业 & 小白双模式** — 专业用户逐步定制，小白用户一键到底
-- **截图自动化工具** — 可选安装 Python 截图/OCR/键鼠/浏览器自动化套件
-- **13 个精选 Skills** — 开发工作流、文档处理、代码审查、安全审计等
-- **CC Switch 集成** — 自动安装模型管理器，桌面快捷方式一键切换
+- **原生 claude.exe** — 不依赖 Node.js 运行，从官方 CDN 直接下载独立可执行文件
+- **7 源下载链** — 官方 CDN + GCS + 多个 CDN 镜像 + 本地文件，每源自动重试
+- **零配置启动** — 自动写入 `.claude.json` 跳过登录/OAuth，自动配置 `settings.json` 权限和思考模式
+- **DeepSeek API** — 填入 Key 即切换到 DeepSeek，4 个模型槽位全预填 `deepseek-v4-pro[1m]`
+- **自定义 API** — 支持任意 Anthropic 兼容的 API 端点，5 个模型槽 + Subagent 可选
+- **工具选择** — 安装前可自由勾选/取消 Git、Python、Tesseract、截图脚本，Node.js 和 Claude Code 强制安装
+- **已安装检测** — 自动检测系统已有的 Node.js / Git / Python / Claude Code，已安装的自动跳过，也可点"仍要安装"强制重装
+- **专业 & 小白双模式** — 专业用户 8 步完整定制，小白用户 4 步快速安装
+- **中英文双语** — 所有页面 8 页完整 i18n，切语言不丢已填内容
+- **下载 99% 假死修复** — 每次读取 120s 独立超时，死连接快速检测自动切源
+- **截图自动化套件** — 可选安装 Python 截图 / OCR / 键鼠 / 浏览器自动化
+- **13 个精选 Skills** — 开发工作流、文档处理、代码审查、安全审计等，一键批量安装
+- **CC Switch 集成** — 自动安装模型管理器，桌面快捷方式一键切换模型
+- **桌面快捷方式** — 安装完成自动创建 Claude Code 和 CC Switch 快捷方式
 
 ---
 
 ## 安装流程
 
 ```
-1. Node.js v20.18.0    ──  npmmirror 镜像
-2. Git for Windows     ──  npmmirror + ghproxy 镜像
-3. npm 全局路径配置
-4. Claude Code 原生 exe ──  downloads.claude.ai + GCS + ghproxy
-5. CC Switch 模型管理器 ──  GitHub API 自动获取最新版
-6. 截图工具 (可选)     ──  Python + Tesseract OCR
-7. 选中的 Skills       ──  npx 镜像安装
-8. 配置文件写入        ──  settings.json + .claude.json
-9. 桌面快捷方式        ──  Claude Code + CC Switch
+ 1. Node.js v20.18.0       npm 中国镜像链
+ 2. Git for Windows         npmmirror + 官方
+ 3. npm 全局路径 + PATH
+ 4. Claude Code 原生 exe    7 源下载链 + 每源 2 次重试
+ 5. CC Switch 模型管理器    GitHub API + 备用直链
+ 6. 截图工具 (可选)         嵌入 Python 脚本
+ 7. Tesseract OCR (可选)    70MB 中英文识别引擎
+ 8. Skills                  npx 多镜像安装
+ 9. .claude.json            跳过登录
+10. settings.json           权限 + 主题 + 思考模式
+11. API 配置                DeepSeek / 自定义 / Anthropic
+12. CLAUDE.md (可选)        截图辅助逻辑
+13. claude install          注册 PATH
+14. 桌面快捷方式             Claude Code + CC Switch
 ```
+
+> Git 和 Python 后台并行安装，不阻塞主流程。下载全部走国内镜像加速。
 
 ---
 
 ## 使用方法
 
-### 专业模式
+### 专业模式（8 页）
 
 ```
-1. 双击 ClaudeCodeInstaller.exe
-2. 选择"我是专业用户"
-3. 选择安装盘符 → 检测环境
-4. 勾选需要的 Skills
-5. 选择是否安装截图工具
-6. 选择权限模式（推荐专业通行）
-7. 配置 API（默认 Anthropic 或 DeepSeek）
-8. 点击"开始安装"
+双击 ClaudeCodeInstaller.exe
+ → 用户分流选择 → 我是专业用户
+ → 环境检测（自动识别已安装软件）
+ → Skills 选择（勾选需要的）
+ → 辅助逻辑（截图规则 / 自定义 CLAUDE.md）
+ → 工具选择（Git / Python / Tesseract / 截图脚本）
+ → 安全模式（推荐专业通行）
+ → API 配置（Anthropic / DeepSeek / 自定义）
+ → 安装配置（盘符 / 自定义路径）
+ → 开始安装
 ```
 
-### 小白模式
+### 小白模式（4 页）
 
 ```
-1. 双击 ClaudeCodeInstaller.exe
-2. 选择"我是小白用户"
-3. 选择安装盘符
-4. 选择 API 提供商（可选填 Key）
-5. 点击"开始安装"
+双击 ClaudeCodeInstaller.exe
+ → 用户分流选择 → 我是小白用户
+ → 工具选择（后台自动检测已安装软件）
+ → API 配置（可选填 Key）
+ → 安装配置（选盘符）
+ → 开始安装
 ```
 
 ---
 
 ## DeepSeek API 配置
 
-选择 DeepSeek 并填入 API Key 后，安装器自动配置：
+选择 DeepSeek 并填入 API Key，安装器自动配置：
 
 | 配置项 | 值 |
 |--------|-----|
@@ -100,16 +118,31 @@
 
 ---
 
+## 镜像加速
+
+| 资源 | 镜像链 |
+|------|--------|
+| Node.js | npmmirror → tsinghua → ustc → 官方 |
+| Git | npmmirror → 官方 |
+| Python | npmmirror → huaweicloud → tsinghua → 官方 |
+| Claude Code | downloads.claude.ai → GCS → CDN 镜像 → 本地 |
+| npm registry | npmmirror → npmjs.org → tencent → huawei |
+| pip | tsinghua |
+
+---
+
 ## 技术栈
 
 | 组件 | 技术 |
 |------|------|
-| 安装器框架 | C# WinForms (.NET 8) |
-| 发布方式 | Single-file self-contained (win-x64) |
-| 安装包大小 | ~161 MB |
-| Claude Code 安装 | 原生 exe (v2.1.x+) |
-| 截图工具 | Python 3.12 + mss/pyautogui/playwright |
-| OCR 引擎 | Tesseract 5.3.3 |
+| 框架 | C# WinForms (.NET 8) |
+| UI 渲染 | WebView2 嵌入式浏览器 + HTML5 单页应用 |
+| 发布 | Single-file self-contained win-x64, ReadyToRun |
+| Node.js | v20.18.0 LTS |
+| Git | v2.45.2 for Windows |
+| Python | 3.12.4 + mss / pytesseract / pyautogui / playwright |
+| OCR | Tesseract 5.3.3 |
+| 安装包 | ~161 MB |
 
 ---
 
@@ -117,9 +150,9 @@
 
 ```powershell
 # 要求: .NET 8 SDK
-cd src/ClaudeCodeInstaller
-dotnet publish -c Release -o ../publish
-# 输出: ../publish/ClaudeCodeInstaller.exe
+cd src/ClaudeCodeInstallerV21
+dotnet publish -c Release -o ../../publish
+# 输出: ../../publish/ClaudeCodeInstaller.exe
 ```
 
 ---
@@ -128,29 +161,39 @@ dotnet publish -c Release -o ../publish
 
 ```
 ClaudeCodeInstaller/
-├── src/ClaudeCodeInstaller/    # 主源码
-│   ├── Form1.cs                # 主界面 + 安装逻辑 (~37KB)
-│   ├── Locale.cs               # 中英文双语
-│   ├── Program.cs              # 入口
-│   ├── app.ico                 # 品牌图标
-│   ├── app.manifest            # 应用清单
-│   └── Resources/              # 嵌入的 Python 工具脚本
-│       ├── scr.py              # 截图
-│       ├── ocr.py              # OCR 识别
-│       ├── act.py              # 键鼠操作
-│       ├── see.py              # 截图+OCR 组合
-│       └── browser.py          # 浏览器自动化
-├── deploy_to_vm.py             # VM 自动部署 (pyautogui)
-├── vix_copy.py                 # VMware VIX API 文件复制
-├── publish/                    # 构建输出
-└── versions/                   # 历史版本归档
+├── src/ClaudeCodeInstallerV21/    # 主源码 (V21)
+│   ├── Program.cs                 # .NET 8 WinForms 入口
+│   ├── Form1.cs                   # 主窗口 + HTTP API + WebView2 宿主
+│   ├── InstallEngine.cs           # 安装引擎 (~1000 行)
+│   ├── Locale.cs                  # 中英文双语
+│   ├── app.ico                    # 品牌图标
+│   ├── wwwroot/
+│   │   └── index.html             # 嵌入式 Web UI (单页应用)
+│   └── Resources/                 # 嵌入的 Python 工具脚本
+│       ├── scr.py                 # 截图
+│       ├── ocr.py                 # OCR 识别
+│       ├── act.py                 # 键鼠操作
+│       ├── see.py                 # 截图 + OCR 组合
+│       └── browser.py             # 浏览器自动化
+├── landing.html                   # 项目首页
+├── publish/                       # 构建输出
+└── versions/                      # 历史版本归档
 ```
+
+---
+
+## 下载
+
+| 方式 | 链接 |
+|------|------|
+| GitHub Releases | [Releases 页面](https://github.com/QSH36/Claude-code-ok/releases) |
+| 直链下载 | [ClaudeCodeInstaller.exe](https://github.com/QSH36/Claude-code-ok/releases/latest) |
 
 ---
 
 ## 许可
 
-MIT License · Copyright (c) 2026 Shimizu
+MIT License · Copyright © 2026 Shimizu
 
 ---
 
