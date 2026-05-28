@@ -77,6 +77,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Microsoft YaHei UI',sans-seri
 .skill-row .sk-name{font-weight:700;font-size:12px;color:var(--text);width:120px;flex-shrink:0}
 .skill-row .sk-desc{font-size:10px;color:var(--text2)}
 
+/* Tool row: locked (mandatory) variant */
+.skill-row.locked{border-left-color:#C4D9FF;background:#f8f9fb;cursor:default}
+.skill-row.locked:hover{background:#f8f9fb}
+.skill-row.locked .sk-chk{background:var(--brand);border-color:var(--brand)}
+.skill-row.locked .sk-chk::after{content:'✓';color:#fff;font-size:10px;font-weight:700}
+
 .chk-row{display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin-bottom:14px}
 .chk-row input[type=checkbox]{display:none}
 .chk-box{width:18px;height:18px;border-radius:4px;border:2px solid #ccc;flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;transition:all .2s ease}
@@ -141,7 +147,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Microsoft YaHei UI',sans-seri
 <body>
 <div class="bg-orbs"><div class="orb"></div><div class="orb"></div><div class="orb"></div></div>
 <div class="app" id="app">
-<div class="titlebar"><div class="dot"></div><div class="dot"></div><div class="dot"></div><span>Claude Code Installer v1.0.6 — Shimizu</span></div>
+<div class="titlebar"><div class="dot"></div><div class="dot"></div><div class="dot"></div><span>Claude Code Installer v1.0.7 — Shimizu</span></div>
 <div class="page-area" id="pageArea"></div>
 <div class="navbar" id="navBar" style="display:none"><button class="btn-back" onclick="goBack()">← 上一步</button><button class="btn-next" id="btnNext" onclick="goNext()">下一步 →</button></div>
 </div>
@@ -155,13 +161,18 @@ const S = {
   showCustomLogic: false, showCustomPaths: false,
   toolDrives: {}, skills: [], maxThinking: true, noUpdate: false,
   installing: false, installDone: false, timer: null,
-  port: window.location.port || '5000', lang: 'zh'
+  port: window.location.port || '5000', lang: 'zh',
+  // Detection results from page 1 (or background for simple mode)
+  nodeOk: false, gitOk: false, pythonOk: false, claudeOk: false,
+  // Tool selection toggles (default all on)
+  installGit: true, installPython: true, installTesseract: true, installScreenshot: true,
+  forceReinstall: {}, // {toolId: true} — user clicked "仍要安装"
 };
 const BASE = () => `http://localhost:${S.port}`;
 
 // ═══ i18n ═══
 const TXT = {
-  welcome_title: { zh:'选择安装方式', en:'Choose Installation Mode' },
+  welcome_title: { zh:'用户分流选择', en:'Choose Installation Mode' },
   welcome_pro: { zh:'我是专业用户', en:'Professional User' },
   welcome_pro_desc: { zh:'逐步选择 Skills、工具、安全模式、API 配置', en:'Step-by-step: Skills, Tools, Security, API' },
   welcome_simple: { zh:'我是小白用户', en:'Simple User' },
@@ -172,31 +183,100 @@ const TXT = {
   nav_env: { zh:'环境检测', en:'Environment' },
   nav_skills: { zh:'Skills 选择', en:'Skills' },
   nav_tools: { zh:'工具与逻辑', en:'Tools & Logic' },
+  nav_toolsel: { zh:'工具选择', en:'Tool Selection' },
   nav_security: { zh:'安全模式', en:'Security' },
   nav_api: { zh:'API 配置', en:'API Config' },
   nav_config: { zh:'安装配置', en:'Install Config' },
   nav_install: { zh:'安装', en:'Install' },
-  step_of: { zh:'步 / 共 3 步', en:' of 3' },
+  step_of: { zh:'步 / 共 4 步', en:' of 4' },
   detect_btn: { zh:'⟳ 重新检测', en:'⟳ Re-detect' },
   select_all: { zh:'全选 / 取消全选', en:'Select All / Deselect' },
   btn_install: { zh:'开始安装', en:'Start Install' },
   installed: { zh:'已安装', en:'Installed' },
   not_installed: { zh:'未安装', en:'Not installed' },
   detecting: { zh:'检测中...', en:'Detecting...' },
+  toolsel_title: { zh:'选择要安装的工具', en:'Select Tools to Install' },
+  toolsel_sub: { zh:'Node.js 和 Claude Code 必须安装，其他工具可按需取消', en:'Node.js and Claude Code are required; other tools are optional' },
+  tool_node: { zh:'Node.js', en:'Node.js' },
+  tool_node_desc: { zh:'v20.18.0 LTS (必需)', en:'v20.18.0 LTS (required)' },
+  tool_claude: { zh:'Claude Code', en:'Claude Code' },
+  tool_claude_desc: { zh:'原生 .exe 启动器 (必需)', en:'Native .exe launcher (required)' },
+  tool_git: { zh:'Git', en:'Git' },
+  tool_git_desc: { zh:'v2.45.2 for Windows', en:'v2.45.2 for Windows' },
+  tool_python: { zh:'Python', en:'Python' },
+  tool_python_desc: { zh:'v3.12.4 + pip 依赖', en:'v3.12.4 + pip dependencies' },
+  tool_tess: { zh:'Tesseract OCR', en:'Tesseract OCR' },
+  tool_tess_desc: { zh:'v5.3.3 中英文识别', en:'v5.3.3 Chinese + English OCR' },
+  tool_screenshot: { zh:'截图工具脚本', en:'Screenshot Scripts' },
+  tool_screenshot_desc: { zh:'scr / ocr / act / see / browser', en:'scr / ocr / act / see / browser' },
+  tool_skip: { zh:'(已安装, 自动跳过)', en:'(installed, skip)' },
+  tool_req: { zh:'(必需)', en:'(required)' },
+  tool_force: { zh:'仍要安装', en:'Install anyway' },
+  // Page banners & content
+  pg_env_title: { zh:'环境检测', en:'Environment Check' },
+  pg_skills_title: { zh:'Skills 选择', en:'Skills Selection' },
+  pg_logic_title: { zh:'辅助逻辑', en:'Assistant Logic' },
+  pg_logic_label: { zh:'添加截图辅助逻辑 (写入 CLAUDE.md)', en:'Add screenshot assist logic (write to CLAUDE.md)' },
+  pg_logic_text: { zh:'当用户请求不清晰时，主动询问是否需要截图查看。', en:'When user request is unclear, proactively ask if a screenshot would help.' },
+  pg_logic_custom_label: { zh:'为 Claude Code 添加底层逻辑', en:'Add custom logic for Claude Code' },
+  pg_logic_custom_desc: { zh:'自定义 CLAUDE.md 内容，控制 Claude Code 行为', en:'Custom CLAUDE.md content to control Claude Code behavior' },
+  pg_logic_custom_hint: { zh:'CLAUDE.md 内容', en:'CLAUDE.md content' },
+  pg_security_title: { zh:'安全模式', en:'Security Mode' },
+  pg_security_safe: { zh:'安全模式', en:'Safe Mode' },
+  pg_security_safe_desc: { zh:'高威胁操作需要用户确认', en:'High-risk operations require confirmation' },
+  pg_security_pro: { zh:'专业通行模式 (推荐)', en:'Professional Mode (Recommended)' },
+  pg_security_pro_desc: { zh:'所有操作无需确认 — 适合高级用户', en:'No confirmations — for advanced users' },
+  pg_api_title: { zh:'API 配置', en:'API Config' },
+  pg_api_anthro_title: { zh:'Anthropic API', en:'Anthropic API' },
+  pg_api_anthro_warn: { zh:'不推荐 · 需登录账号', en:'Not recommended · requires login' },
+  pg_api_anthro_desc: { zh:'需要 Claude Code 账号登录，国内访问可能受限', en:'Requires Claude Code login, may be restricted in China' },
+  pg_api_ds_title: { zh:'DeepSeek', en:'DeepSeek' },
+  pg_api_ds_rec: { zh:'推荐', en:'Recommended' },
+  pg_api_ds_desc: { zh:'deepseek-v4-pro[1m] · 4个模型槽预填 · subagent 用 v4-flash', en:'deepseek-v4-pro[1m] · 4 slots pre-filled · subagent v4-flash' },
+  pg_api_cust_title: { zh:'自定义选择模型', en:'Custom Model' },
+  pg_api_cust_desc: { zh:'自行填入 API 密钥、请求地址、模型映射（类似 CC Switch）', en:'Custom API key, base URL, model mapping (like CC Switch)' },
+  pg_api_key_required: { zh:'API Key', en:'API Key' },
+  pg_api_key_placeholder: { zh:'sk-...', en:'sk-...' },
+  pg_api_url_label: { zh:'请求地址 base_url (Anthropic)', en:'Base URL (Anthropic)' },
+  pg_api_url_hint: { zh:'请使用 base_url (Anthropic) 格式 · 无需输入 https://，自动补全', en:'Use base_url (Anthropic) format · https:// auto-added' },
+  pg_api_model_section: { zh:'映射模型（以下 4 项必填）', en:'Model Mapping (all 4 required)' },
+  pg_api_main_model: { zh:'主模型', en:'Main Model' },
+  pg_api_haiku_model: { zh:'Haiku 默认模型', en:'Haiku Default Model' },
+  pg_api_sonnet_model: { zh:'Sonnet 默认模型', en:'Sonnet Default Model' },
+  pg_api_opus_model: { zh:'Opus 默认模型', en:'Opus Default Model' },
+  pg_api_sub_label: { zh:'配置 Subagent 模型', en:'Configure Subagent Model' },
+  pg_api_sub_optional: { zh:'选填', en:'optional' },
+  pg_api_think: { zh:'启用最大强度思考', en:'Enable maximum thinking' },
+  pg_api_no_update: { zh:'禁用自动更新', en:'Disable auto-update' },
+  pg_cfg_title: { zh:'安装配置', en:'Install Config' },
+  pg_cfg_location: { zh:'选择安装位置', en:'Select Install Location' },
+  pg_cfg_drive: { zh:'默认盘符:', en:'Default drive:' },
+  pg_cfg_custom_label: { zh:'工具自定义安装位置', en:'Custom tool install location' },
+  pg_cfg_custom_desc: { zh:'单独指定每个工具安装到哪个盘符', en:'Specify drive for each tool individually' },
+  pg_install_title: { zh:'安装', en:'Install' },
+  pg_install_ready: { zh:'就绪 — 点击"开始安装"按钮...', en:'Ready — click "Start Install"...' },
+  pg_install_starting: { zh:'正在启动安装引擎...', en:'Starting install engine...' },
+  pg_install_started: { zh:'安装已启动，等待进度...', en:'Install started, waiting for progress...' },
+  pg_install_fail: { zh:'启动失败: ', en:'Start failed: ' },
+  pg_install_retry: { zh:'重试安装', en:'Retry Install' },
+  modal_complete: { zh:'✅ 安装完成!', en:'✅ Installation Complete!' },
+  modal_tools: { zh:'已安装工具', en:'Installed Tools' },
+  modal_skills: { zh:'已安装 Skills', en:'Installed Skills' },
+  modal_config: { zh:'配置', en:'Configuration' },
+  modal_settings: { zh:'settings.json → ~/.claude/\nCLAUDE.md → ~/\n桌面快捷方式: Claude Code / CC Switch', en:'settings.json → ~/.claude/\nCLAUDE.md → ~/\nDesktop shortcuts: Claude Code / CC Switch' },
+  modal_close: { zh:'完成', en:'Done' },
+  preset_note: { zh:'预设模型: deepseek-v4-pro[1m] (主/Opus/Sonnet) + deepseek-v4-flash (Haiku/Subagent)', en:'Preset: deepseek-v4-pro[1m] (Main/Opus/Sonnet) + deepseek-v4-flash (Haiku/Subagent)' },
 };
 function T(key) { return (TXT[key]||{})[S.lang] || key; }
 
 function applyLang() {
-  // Update nav buttons
   const bb = document.querySelector('#navBar .btn-back'); if (bb) bb.textContent = T('btn_back');
   const bn = document.querySelector('#navBar .btn-next'); if (bn) bn.textContent = T('btn_next');
-  // Update detect btn
   const db = document.getElementById('detectBtn'); if (db) db.textContent = T('detect_btn');
-  // Update install btn
   const ib = document.getElementById('btnInstall'); if (ib) ib.textContent = T('btn_install');
-  // Re-render current page strings
   if (S.page === 0) updateWelcomeText();
   if (S.page === 2) updateSkillsText();
+  if (S.page === 4) buildToolSelectRows();
 }
 function updateWelcomeText() {
   const wel = document.querySelector('#pg0 .ct');
@@ -245,10 +325,10 @@ function renderAll() {
 <div class="page active" id="pg0">
   <div class="banner welcome">
     <div class="brand">SHIMIZU</div><h1>Claude Code 安装器</h1>
-    <div class="sub">一键安装 · 永久免费 · v1.0.6</div>
+    <div class="sub">一键安装 · 永久免费 · v1.0.7</div>
   </div>
   <div class="ct">
-    <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px">选择安装方式</div>
+    <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px">用户分流选择</div>
     <div class="cards" style="flex-direction:row">
       <div class="card pro" onclick="pickMode(false)" style="flex:1"><div class="wc-icon">⚙️</div><h3>我是专业用户</h3><p>逐步选择 Skills、工具、安全模式、API 配置</p></div>
       <div class="card simple" onclick="pickMode(true)" style="flex:1"><div class="wc-icon">🚀</div><h3>我是小白用户</h3><p>简易安装 · 快速配置</p></div>
@@ -258,7 +338,7 @@ function renderAll() {
 </div>
 
 <div class="page" id="pg1">
-  <div class="banner step"><div class="badge">1</div><span class="st">环境检测</span></div>
+  <div class="banner step"><div class="badge">1</div><span class="st">${T('pg_env_title')}</span></div>
   <div class="ct">
     <div class="flow-row">
       <span style="font-weight:700;font-size:12px">语言 / Language:</span>
@@ -272,7 +352,7 @@ function renderAll() {
 </div>
 
 <div class="page" id="pg2">
-  <div class="banner step"><div class="badge">2</div><span class="st">Skills 选择</span></div>
+  <div class="banner step"><div class="badge">2</div><span class="st">${T('pg_skills_title')}</span></div>
   <div class="ct">
     <button class="pill" id="pillAll" onclick="toggleAllSkills()">全选 / 取消全选</button>
     <div id="skillList" style="max-height:380px;overflow-y:auto"></div>
@@ -280,78 +360,86 @@ function renderAll() {
 </div>
 
 <div class="page" id="pg3">
-  <div class="banner step"><div class="badge">3</div><span class="st">工具与逻辑</span></div>
+  <div class="banner step"><div class="badge">3</div><span class="st">${T('pg_logic_title')}</span></div>
   <div class="ct">
-    <div class="chk-row on" onclick="this.classList.toggle('on')" id="chkTools"><div class="chk-box"></div><div><div class="chk-label">安装截图操作工具 (Python)</div><div class="chk-desc">scr / ocr / see / act / browser — 屏幕截图、OCR、鼠标键盘、浏览器自动化</div></div></div>
-    <div class="chk-row on" onclick="this.classList.toggle('on')" id="chkLogic"><div class="chk-box"></div><div><div class="chk-label">添加截图辅助逻辑 (写入 CLAUDE.md)</div></div></div>
-    <textarea readonly style="margin-left:28px;width:calc(100%-30px);height:40px;border-radius:8px;border:1.5px solid #dde;padding:8px;font-family:Consolas,monospace;font-size:10px;resize:none;margin-bottom:14px;background:#f8f9fa">当用户请求不清晰时，主动询问是否需要截图查看。</textarea>
-    <div class="chk-row" onclick="toggleCustomLogic()" id="chkCustomLogic"><div class="chk-box"></div><div><div class="chk-label">为 Claude Code 添加底层逻辑</div><div class="chk-desc">自定义 CLAUDE.md 内容，控制 Claude Code 行为</div></div></div>
-    <div class="expand" id="expCustomLogic"><div class="field-panel"><div class="fw"><label>CLAUDE.md 内容</label><textarea id="txtClaudeMd" placeholder="# CLAUDE.md&#10;你是..."></textarea></div></div></div>
+    <div class="chk-row on" onclick="this.classList.toggle('on')" id="chkLogic"><div class="chk-box"></div><div><div class="chk-label">${T('pg_logic_label')}</div></div></div>
+    <textarea readonly style="margin-left:28px;width:calc(100%-30px);height:40px;border-radius:8px;border:1.5px solid #dde;padding:8px;font-family:Consolas,monospace;font-size:10px;resize:none;margin-bottom:14px;background:#f8f9fa">${T('pg_logic_text')}</textarea>
+    <div class="chk-row" onclick="toggleCustomLogic()" id="chkCustomLogic"><div class="chk-box"></div><div><div class="chk-label">${T('pg_logic_custom_label')}</div><div class="chk-desc">${T('pg_logic_custom_desc')}</div></div></div>
+    <div class="expand" id="expCustomLogic"><div class="field-panel"><div class="fw"><label>${T('pg_logic_custom_hint')}</label><textarea id="txtClaudeMd" placeholder="# CLAUDE.md&#10;..."></textarea></div></div></div>
   </div>
 </div>
 
 <div class="page" id="pg4">
-  <div class="banner step"><div class="badge">4</div><span class="st">安全模式</span></div>
+  <div class="banner step"><div class="badge" id="toolBadge">4</div><span class="st">工具选择</span><span class="step-info" id="toolStepInfo"></span></div>
   <div class="ct">
-    <div class="opt-cards">
-      <div class="opt-card" id="optSafe" onclick="pickSec('safe')"><div class="o-dot"></div><div><div class="o-title">安全模式</div><div class="o-desc">高威胁操作需要用户确认</div></div></div>
-      <div class="opt-card sel" id="optPro" onclick="pickSec('pro')"><div class="o-dot"></div><div><div class="o-title">专业通行模式 (推荐)</div><div class="o-desc">所有操作无需确认 — 适合高级用户</div></div></div>
-    </div>
+    <div style="font-weight:700;font-size:14px;color:var(--text);margin-bottom:4px">选择要安装的工具</div>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:12px">Node.js 和 Claude Code 必须安装，其他工具可按需取消</div>
+    <div id="toolSelectList" style="max-height:400px;overflow-y:auto"></div>
   </div>
 </div>
 
 <div class="page" id="pg5">
-  <div class="banner step"><div class="badge" id="apiBadge">5</div><span class="st">API 配置</span><span class="step-info" id="apiStepInfo"></span></div>
-  <div class="ct" style="overflow-y:auto">
+  <div class="banner step"><div class="badge">5</div><span class="st">${T('pg_security_title')}</span></div>
+  <div class="ct">
     <div class="opt-cards">
-      <div class="opt-card" id="optAnth" onclick="pickApi('anthropic')"><div class="o-dot"></div><div><div class="o-title">Anthropic API <span class="badge-tag warn">不推荐 · 需登录账号</span></div><div class="o-desc">需要 Claude Code 账号登录，国内访问可能受限</div></div></div>
-      <div class="opt-card sel" id="optDS" onclick="pickApi('deepseek')"><div class="o-dot"></div><div><div class="o-title">DeepSeek <span class="badge-tag rec">推荐</span></div><div class="o-desc">deepseek-v4-pro[1m] · 4个模型槽预填 · subagent 用 v4-flash</div></div></div>
-      <div class="opt-card" id="optCust" onclick="pickApi('custom')"><div class="o-dot"></div><div><div class="o-title">自定义选择模型</div><div class="o-desc">自行填入 API 密钥、请求地址、模型映射（类似 CC Switch）</div></div></div>
+      <div class="opt-card" id="optSafe" onclick="pickSec('safe')"><div class="o-dot"></div><div><div class="o-title">${T('pg_security_safe')}</div><div class="o-desc">${T('pg_security_safe_desc')}</div></div></div>
+      <div class="opt-card sel" id="optPro" onclick="pickSec('pro')"><div class="o-dot"></div><div><div class="o-title">${T('pg_security_pro')}</div><div class="o-desc">${T('pg_security_pro_desc')}</div></div></div>
     </div>
-    <div class="expand" id="expDS"><div class="field-panel"><div class="fw"><label>API Key <span class="req">*必填</span></label><input type="password" placeholder="sk-..." id="dsKey"></div><div class="fw" style="font-size:10px;color:var(--text2)">预设模型: deepseek-v4-pro[1m] (主/Opus/Sonnet) + deepseek-v4-flash (Haiku/Subagent)</div></div></div>
-    <div class="expand" id="expCust"><div class="field-panel">
-      <div class="fw"><label>API Key <span class="req">*必填</span></label><input type="password" placeholder="输入 API 密钥" id="cKey"></div>
-      <div class="fw"><label>请求地址 base_url (Anthropic) <span class="req">*必填</span></label><input type="text" placeholder="api.example.com" id="cUrl"><div style="font-size:10px;color:var(--text2)">请使用 base_url (Anthropic) 格式 · 无需输入 https://，自动补全</div></div>
-      <div class="fw" style="font-weight:700;font-size:11px;color:var(--text2);margin:4px 0">映射模型（以下 4 项必填）</div>
-      <div><label>主模型 <span class="req">*必填</span></label><input type="text" placeholder="model-name" id="cMain"></div>
-      <div><label>Haiku 默认模型 <span class="req">*必填</span></label><input type="text" placeholder="haiku-model" id="cHaiku"></div>
-      <div><label>Sonnet 默认模型 <span class="req">*必填</span></label><input type="text" placeholder="sonnet-model" id="cSonnet"></div>
-      <div><label>Opus 默认模型 <span class="req">*必填</span></label><input type="text" placeholder="opus-model" id="cOpus"></div>
-      <div class="fw"><div class="chk-row on" onclick="this.classList.toggle('on')" id="chkSub">
-        <div class="chk-box"></div><div class="chk-label">配置 Subagent 模型 <span style="color:var(--text2);font-weight:400;font-size:10px">(选填)</span></div>
-      </div></div>
-      <div class="fw" id="subFld" style="display:none"><input type="text" placeholder="subagent-model" id="cSub"></div>
-      <div class="fw"><div class="chk-row on" id="chkThink" onclick="this.classList.toggle('on');S.maxThinking=this.classList.contains('on')"><div class="chk-box"></div><div class="chk-label">启用最大强度思考</div></div></div>
-      <div class="fw"><div class="chk-row" id="chkNoUp" onclick="this.classList.toggle('on');S.noUpdate=this.classList.contains('on')"><div class="chk-box"></div><div class="chk-label">禁用自动更新</div></div></div>
-    </div></div>
   </div>
 </div>
 
 <div class="page" id="pg6">
-  <div class="banner step"><div class="badge" id="cfgBadge">6</div><span class="st">安装配置</span><span class="step-info" id="cfgStepInfo"></span></div>
-  <div class="ct">
-    <div style="font-weight:700;font-size:14px;color:var(--text);margin-bottom:12px">选择安装位置</div>
-    <div class="flow-row"><span>默认盘符:</span><select id="cfgDrive" onchange="S.drive=this.value;refreshPaths()">${optDrive(S.drive)}</select></div>
-    <div class="path-list" id="pathHint"></div>
-    <div class="chk-row" id="chkCustomPath" onclick="toggleCustomPaths()"><div class="chk-box"></div><div><div class="chk-label">工具自定义安装位置</div><div class="chk-desc">单独指定每个工具安装到哪个盘符</div></div></div>
-    <div class="expand" id="expCustPath"><div class="field-panel" id="custPathFields"></div></div>
+  <div class="banner step"><div class="badge" id="apiBadge">6</div><span class="st">${T('pg_api_title')}</span><span class="step-info" id="apiStepInfo"></span></div>
+  <div class="ct" style="overflow-y:auto">
+    <div class="opt-cards">
+      <div class="opt-card" id="optAnth" onclick="pickApi('anthropic')"><div class="o-dot"></div><div><div class="o-title">${T('pg_api_anthro_title')} <span class="badge-tag warn">${T('pg_api_anthro_warn')}</span></div><div class="o-desc">${T('pg_api_anthro_desc')}</div></div></div>
+      <div class="opt-card sel" id="optDS" onclick="pickApi('deepseek')"><div class="o-dot"></div><div><div class="o-title">${T('pg_api_ds_title')} <span class="badge-tag rec">${T('pg_api_ds_rec')}</span></div><div class="o-desc">${T('pg_api_ds_desc')}</div></div></div>
+      <div class="opt-card" id="optCust" onclick="pickApi('custom')"><div class="o-dot"></div><div><div class="o-title">${T('pg_api_cust_title')}</div><div class="o-desc">${T('pg_api_cust_desc')}</div></div></div>
+    </div>
+    <div class="expand" id="expDS"><div class="field-panel"><div class="fw"><label>${T('pg_api_key_required')} <span class="req">*${T('tool_req')}</span></label><input type="password" placeholder="${T('pg_api_key_placeholder')}" id="dsKey"></div><div class="fw" style="font-size:10px;color:var(--text2)">${T('preset_note')}</div></div></div>
+    <div class="expand" id="expCust"><div class="field-panel">
+      <div class="fw"><label>${T('pg_api_key_required')} <span class="req">*${T('tool_req')}</span></label><input type="password" placeholder="API Key" id="cKey"></div>
+      <div class="fw"><label>${T('pg_api_url_label')} <span class="req">*${T('tool_req')}</span></label><input type="text" placeholder="api.example.com" id="cUrl"><div style="font-size:10px;color:var(--text2)">${T('pg_api_url_hint')}</div></div>
+      <div class="fw" style="font-weight:700;font-size:11px;color:var(--text2);margin:4px 0">${T('pg_api_model_section')}</div>
+      <div><label>${T('pg_api_main_model')} <span class="req">*${T('tool_req')}</span></label><input type="text" placeholder="model-name" id="cMain"></div>
+      <div><label>${T('pg_api_haiku_model')} <span class="req">*${T('tool_req')}</span></label><input type="text" placeholder="haiku-model" id="cHaiku"></div>
+      <div><label>${T('pg_api_sonnet_model')} <span class="req">*${T('tool_req')}</span></label><input type="text" placeholder="sonnet-model" id="cSonnet"></div>
+      <div><label>${T('pg_api_opus_model')} <span class="req">*${T('tool_req')}</span></label><input type="text" placeholder="opus-model" id="cOpus"></div>
+      <div class="fw"><div class="chk-row on" onclick="this.classList.toggle('on')" id="chkSub">
+        <div class="chk-box"></div><div class="chk-label">${T('pg_api_sub_label')} <span style="color:var(--text2);font-weight:400;font-size:10px">(${T('pg_api_sub_optional')})</span></div>
+      </div></div>
+      <div class="fw" id="subFld" style="display:none"><input type="text" placeholder="subagent-model" id="cSub"></div>
+      <div class="fw"><div class="chk-row on" id="chkThink" onclick="this.classList.toggle('on');S.maxThinking=this.classList.contains('on')"><div class="chk-box"></div><div class="chk-label">${T('pg_api_think')}</div></div></div>
+      <div class="fw"><div class="chk-row" id="chkNoUp" onclick="this.classList.toggle('on');S.noUpdate=this.classList.contains('on')"><div class="chk-box"></div><div class="chk-label">${T('pg_api_no_update')}</div></div></div>
+    </div></div>
   </div>
 </div>
 
 <div class="page" id="pg7">
-  <div class="banner step"><div class="badge" id="insBadge">7</div><span class="st">安装</span><span class="step-info" id="insStepInfo"></span></div>
+  <div class="banner step"><div class="badge" id="cfgBadge">7</div><span class="st">${T('pg_cfg_title')}</span><span class="step-info" id="cfgStepInfo"></span></div>
+  <div class="ct">
+    <div style="font-weight:700;font-size:14px;color:var(--text);margin-bottom:12px">${T('pg_cfg_location')}</div>
+    <div class="flow-row"><span>${T('pg_cfg_drive')}</span><select id="cfgDrive" onchange="S.drive=this.value;refreshPaths()">${optDrive(S.drive)}</select></div>
+    <div class="path-list" id="pathHint"></div>
+    <div class="chk-row" id="chkCustomPath" onclick="toggleCustomPaths()"><div class="chk-box"></div><div><div class="chk-label">${T('pg_cfg_custom_label')}</div><div class="chk-desc">${T('pg_cfg_custom_desc')}</div></div></div>
+    <div class="expand" id="expCustPath"><div class="field-panel" id="custPathFields"></div></div>
+  </div>
+</div>
+
+<div class="page" id="pg8">
+  <div class="banner step"><div class="badge" id="insBadge">8</div><span class="st">${T('pg_install_title')}</span><span class="step-info" id="insStepInfo"></span></div>
   <div class="ct">
     <button class="install-btn" id="btnInstall" onclick="startInstall()">开始安装</button>
     <div class="progress-wrap"><div class="progress-bar"><div class="progress-fill" id="progFill"></div></div></div>
-    <div class="terminal" id="termLog">就绪 — 点击"开始安装"按钮...</div>
+    <div class="terminal" id="termLog">${T('pg_install_ready')}</div>
   </div>
 </div>`;
 
-  // Post-render setup
   refreshPaths();
   buildSkillRows();
   detectEnv();
   updateApiUI();
+  pickApi(S.api); // re-sync card selection after DOM rebuild (fixes simple→pro bug)
   updateSteps();
 }
 
@@ -363,45 +451,118 @@ function setPage(n) {
   const nav = document.getElementById('navBar');
   const btnN = document.getElementById('btnNext');
   if (n === 0 || S.installing) { nav.style.display = 'none'; }
-  else { nav.style.display = 'flex'; btnN.style.display = (n===7)?'none':''; }
-  if (n===6) refreshPaths();
-  if (n===5) updateApiUI();
+  else { nav.style.display = 'flex'; btnN.style.display = (n===8)?'none':''; }
+  if (n===7) refreshPaths();
+  if (n===6) updateApiUI();
+  if (n===4) buildToolSelectRows();
   updateSteps();
   document.getElementById('pageArea').scrollTop = 0;
 }
 
 function updateSteps() {
-  const ab = document.getElementById('apiBadge'); if (ab) ab.textContent = S.simple ? '1' : '5';
-  const cb = document.getElementById('cfgBadge'); if (cb) cb.textContent = S.simple ? '2' : '6';
-  const ib = document.getElementById('insBadge'); if (ib) ib.textContent = S.simple ? '3' : '7';
-  const asi = document.getElementById('apiStepInfo'); if (asi) asi.textContent = S.simple ? '第 1 步 / 共 3 步' : '';
-  const csi = document.getElementById('cfgStepInfo'); if (csi) csi.textContent = S.simple ? '第 2 步 / 共 3 步' : '';
-  const isi = document.getElementById('insStepInfo'); if (isi) isi.textContent = S.simple ? '第 3 步 / 共 3 步' : '';
+  // Tool selection badge (pg4): 4 in pro, 1 in simple
+  const tb = document.getElementById('toolBadge'); if (tb) tb.textContent = S.simple ? '1' : '4';
+  const tsi = document.getElementById('toolStepInfo'); if (tsi) tsi.textContent = S.simple ? '第 1 步 / 共 4 步' : '';
+  // API badge (pg6): 6 in pro, 2 in simple
+  const ab = document.getElementById('apiBadge'); if (ab) ab.textContent = S.simple ? '2' : '6';
+  const asi = document.getElementById('apiStepInfo'); if (asi) asi.textContent = S.simple ? '第 2 步 / 共 4 步' : '';
+  // Config badge (pg7): 7 in pro, 3 in simple
+  const cb = document.getElementById('cfgBadge'); if (cb) cb.textContent = S.simple ? '3' : '7';
+  const csi = document.getElementById('cfgStepInfo'); if (csi) csi.textContent = S.simple ? '第 3 步 / 共 4 步' : '';
+  // Install badge (pg8): 8 in pro, 4 in simple
+  const ib = document.getElementById('insBadge'); if (ib) ib.textContent = S.simple ? '4' : '8';
+  const isi = document.getElementById('insStepInfo'); if (isi) isi.textContent = S.simple ? '第 4 步 / 共 4 步' : '';
 }
 
-function pickMode(isSimple) { S.simple = isSimple; updateSteps(); setPage(isSimple ? 5 : 1); renderAll(); setPage(isSimple ? 5 : 1); }
-function goNext() {
-  if (S.page === 5 && !validateApi()) return;
-  if (S.simple) { if (S.page===5) setPage(6); else if (S.page===6) setPage(7); }
-  else { if (S.page<7) setPage(S.page+1); }
+function pickMode(isSimple) {
+  S.simple = isSimple;
+  updateSteps();
+  if (isSimple) {
+    // Simple mode: skip to pg4 (tool selection), auto-detect in background
+    setPage(4);
+    detectEnv(); // run detection silently, results feed into tool toggles
+  } else {
+    setPage(1);
+  }
+  renderAll();
+  if (isSimple) setPage(4); else setPage(1);
 }
+
+function goNext() {
+  if (S.page === 6 && !validateApi()) return;
+  if (S.simple) {
+    // Simple route: pg4→pg6→pg7→pg8
+    if (S.page===4) setPage(6);
+    else if (S.page===6) setPage(7);
+    else if (S.page===7) setPage(8);
+  } else {
+    if (S.page<8) setPage(S.page+1);
+  }
+}
+
 function goBack() {
-  if (S.simple) { if (S.page===5) setPage(0); else if (S.page===6) setPage(5); else if (S.page===7) setPage(6); }
-  else { if (S.page>0) setPage(S.page-1); }
+  if (S.simple) {
+    if (S.page===4) setPage(0);
+    else if (S.page===6) setPage(4);
+    else if (S.page===7) setPage(6);
+    else if (S.page===8) setPage(7);
+  } else {
+    if (S.page>0) setPage(S.page-1);
+  }
 }
 
 // ═══ LANGUAGE ═══
 function switchLang(lang) {
   S.lang = lang;
+  // Save critical state before re-render
+  const savedKeys = {};
+  ['dsKey','cKey','cUrl','cMain','cHaiku','cSonnet','cOpus','cSub','txtClaudeMd'].forEach(id => {
+    const el = document.getElementById(id); if (el) savedKeys[id] = el.value;
+  });
+  const savedSkills = [...S.skills];
+  const savedPage = S.page;
+  const savedShowCustomLogic = S.showCustomLogic;
+  const savedShowCustomPaths = S.showCustomPaths;
+  const savedForce = {...S.forceReinstall};
+
+  // Re-render all pages with new language
+  renderAll();
+
+  // Restore state
+  S.skills = savedSkills;
+  S.showCustomLogic = savedShowCustomLogic;
+  S.showCustomPaths = savedShowCustomPaths;
+  S.forceReinstall = savedForce;
+  Object.keys(savedKeys).forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = savedKeys[id] || '';
+  });
+  if (S.showCustomLogic) {
+    document.getElementById('chkCustomLogic')?.classList.add('on');
+    document.getElementById('expCustomLogic')?.classList.add('show');
+  }
+  if (S.showCustomPaths) {
+    document.getElementById('chkCustomPath')?.classList.add('on');
+    document.getElementById('expCustPath')?.classList.add('show');
+  }
+
+  // Restore page
+  setPage(savedPage);
   applyLang();
-  // Re-render current page-specific text
-  if (S.page === 1) detectEnv();
-  if (S.page === 2) updateSkillsText();
 }
 
 // ═══ PAGE 1: ENV DETECTION ═══
 function detectEnv() {
   const cards = document.getElementById('statCards');
+  if (!cards) {
+    // Page 1 not rendered (simple mode) — detect silently for state
+    checkCmd('node','--version').then(v => { S.nodeOk = v !== ''; });
+    checkCmd('git','--version').then(v => { S.gitOk = v !== ''; if (S.gitOk) S.installGit = false; });
+    checkCmd('python','--version').then(v => { S.pythonOk = v !== ''; if (S.pythonOk) S.installPython = false; });
+    checkCmd('claude','--version').then(v => { S.claudeOk = v !== ''; });
+    // Rebuild tool list once all detection completes
+    setTimeout(() => { if (S.page === 4) buildToolSelectRows(); }, 3000);
+    return;
+  }
   const pathEl = document.getElementById('envPath');
   const items = [
     {n:'Node.js',ok:false,ver:T('detecting')},
@@ -412,10 +573,10 @@ function detectEnv() {
   cards.innerHTML = items.map(i => `<div class="stat-card"><div class="sdot"></div><span class="sn">${i.n}</span><span class="sv" id="sv${i.n}">${i.ver}</span></div>`).join('');
   pathEl.textContent = `路径: Node → ${S.drive}\\Claude Code tool\\NodeJS  Git → ${S.drive}\\Claude Code tool\\Git  npm → ${S.drive}\\Claude Code tool\\npm-global`;
 
-  checkCmd('node','--version').then(v => updateStat(0, 'Node.js', v, 'v'));
-  checkCmd('git','--version').then(v => updateStat(1, 'Git', v, 'git version '));
-  checkCmd('python','--version').then(v => updateStat(2, 'Python', v, 'Python '));
-  checkCmd('claude','--version').then(v => updateStat(3, 'Claude Code', v, ''));
+  checkCmd('node','--version').then(v => { updateStat(0, 'Node.js', v, 'v'); S.nodeOk = v !== ''; });
+  checkCmd('git','--version').then(v => { updateStat(1, 'Git', v, 'git version '); S.gitOk = v !== ''; if (S.gitOk) S.installGit = false; });
+  checkCmd('python','--version').then(v => { updateStat(2, 'Python', v, 'Python '); S.pythonOk = v !== ''; if (S.pythonOk) S.installPython = false; });
+  checkCmd('claude','--version').then(v => { updateStat(3, 'Claude Code', v, ''); S.claudeOk = v !== ''; });
 }
 
 async function checkCmd(cmd, args) {
@@ -455,7 +616,7 @@ function toggleAllSkills() {
   S.skills = allOn ? [] : [...SKILLS];
 }
 
-// ═══ PAGE 3: TOOLS ═══
+// ═══ PAGE 3: LOGIC ═══
 function toggleCustomLogic() {
   const row = document.getElementById('chkCustomLogic');
   row.classList.toggle('on');
@@ -464,13 +625,68 @@ function toggleCustomLogic() {
   if (S.showCustomLogic) exp.classList.add('show'); else exp.classList.remove('show');
 }
 
-// ═══ PAGE 4: SECURITY ═══
+// ═══ PAGE 4: TOOL SELECTION ═══
+function buildToolSelectRows() {
+  const el = document.getElementById('toolSelectList');
+  if (!el) return;
+
+  const items = [
+    {id:'node',    nameKey:'tool_node',    descKey:'tool_node_desc',    required:true,  stateKey:'nodeOk',     detectedKey:'nodeOk',     installKey:null},
+    {id:'claude',  nameKey:'tool_claude',  descKey:'tool_claude_desc',  required:true,  stateKey:'claudeOk',   detectedKey:'claudeOk',   installKey:null},
+    {id:'git',     nameKey:'tool_git',     descKey:'tool_git_desc',     required:false, stateKey:'installGit', detectedKey:'gitOk',      installKey:'installGit'},
+    {id:'python',  nameKey:'tool_python',  descKey:'tool_python_desc',  required:false, stateKey:'installPython', detectedKey:'pythonOk', installKey:'installPython'},
+    {id:'tess',    nameKey:'tool_tess',    descKey:'tool_tess_desc',    required:false, stateKey:'installTesseract', detectedKey:null,  installKey:'installTesseract'},
+    {id:'scrshot', nameKey:'tool_screenshot', descKey:'tool_screenshot_desc', required:false, stateKey:'installScreenshot', detectedKey:null, installKey:'installScreenshot'},
+  ];
+
+  el.innerHTML = items.map(it => {
+    const isDetected = it.detectedKey ? S[it.detectedKey] : false;
+    const forced = S.forceReinstall[it.id];
+    // If user clicked "仍要安装", treat as not detected
+    const effectiveDetected = isDetected && !forced;
+    // Mandatory tools: show ON only if NOT already installed (or forced)
+    const isOn = it.required ? !effectiveDetected : (forced ? true : S[it.stateKey]);
+    const cls = it.required ? (isOn ? 'skill-row locked' : 'skill-row locked off') : (effectiveDetected && !forced ? 'skill-row off' : (isOn ? 'skill-row on' : 'skill-row off'));
+    const clickable = !it.required || forced; // mandatory can be clicked if forced reinstall
+    const clickHandler = clickable ? `onclick="toggleTool('${it.id}', this)"` : '';
+    const skipTag = effectiveDetected ? ' <span style="font-size:10px;color:var(--green);font-weight:400">' + T('tool_skip') + '</span>' : '';
+    const forceTag = (it.detectedKey && isDetected && !forced) ? ' <span style="font-size:10px;color:var(--brand);cursor:pointer;text-decoration:underline" onclick="event.stopPropagation();forceInstallTool(\''+it.id+'\')">' + T('tool_force') + '</span>' : '';
+    const reqTag = (it.required && !effectiveDetected) ? ' <span style="font-size:10px;color:var(--brand);font-weight:400">' + T('tool_req') + '</span>' : '';
+    return `<div class="${cls}" data-tool="${it.id}" ${clickHandler} style="${clickable ? 'cursor:pointer' : 'cursor:default'}">
+      <div class="sk-chk"></div>
+      <span class="sk-name">${T(it.nameKey)}</span>
+      <span class="sk-desc">${T(it.descKey)}${skipTag}${reqTag} ${forceTag}</span>
+    </div>`;
+  }).join('');
+}
+
+function toggleTool(id, row) {
+  const map = {node:'installNode', claude:'installClaude', git:'installGit', python:'installPython', tess:'installTesseract', scrshot:'installScreenshot'};
+  const key = map[id]; if (!key) return;
+  // If forced reinstall, allow toggling
+  const detectMap = {node:'nodeOk', claude:'claudeOk', git:'gitOk', python:'pythonOk'};
+  if (detectMap[id] && S[detectMap[id]] && !S.forceReinstall[id]) return; // locked if detected and not forced
+  row.classList.toggle('on'); row.classList.toggle('off');
+  S[key] = row.classList.contains('on');
+}
+
+function forceInstallTool(id) {
+  S.forceReinstall[id] = true;
+  // Clear detection flag so backend will reinstall
+  const detectMap = {node:'nodeOk', claude:'claudeOk', git:'gitOk', python:'pythonOk'};
+  if (detectMap[id]) S[detectMap[id]] = false;
+  const stateMap = {node:'installNode', claude:'installClaude', git:'installGit', python:'installPython'};
+  if (stateMap[id]) S[stateMap[id]] = true;
+  buildToolSelectRows();
+}
+
+// ═══ PAGE 5: SECURITY ═══
 function pickSec(val) {
   document.getElementById('optSafe').classList.toggle('sel', val==='safe');
   document.getElementById('optPro').classList.toggle('sel', val==='pro');
 }
 
-// ═══ PAGE 5: API ═══
+// ═══ PAGE 6: API ═══
 function pickApi(val) {
   S.api = val;
   ['optAnth','optDS','optCust'].forEach(id => document.getElementById(id).classList.remove('sel'));
@@ -483,8 +699,6 @@ function pickApi(val) {
 function updateApiUI() {
   document.getElementById('expDS').classList.toggle('show', S.api==='deepseek');
   document.getElementById('expCust').classList.toggle('show', S.api==='custom');
-
-  // Subagent toggle
   const subRow = document.getElementById('chkSub');
   const subFld = document.getElementById('subFld');
   if (subRow && subFld) {
@@ -517,14 +731,23 @@ function toast(msg) {
   setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .3s'; setTimeout(() => t.remove(), 300); }, 2500);
 }
 
-// ═══ PAGE 6: INSTALL CONFIG ═══
+// ═══ PAGE 7: INSTALL CONFIG ═══
+function isToolVisible(toolId) {
+  if (toolId === 'node' || toolId === 'npm' || toolId === 'cctools') return true; // mandatory
+  if (toolId === 'git') return S.installGit;
+  if (toolId === 'python') return S.installPython;
+  if (toolId === 'tesseract') return S.installTesseract;
+  return true;
+}
+
 function refreshPaths() {
   const el = document.getElementById('pathHint'); if (!el) return;
   const d = S.drive;
-  el.innerHTML = TOOLS.map(t => `${t.name}${t.ver?' '+t.ver:''} → <code>${d}\\Claude Code tool\\${t.sub}</code>`).join('<br>');
+  const visibleTools = TOOLS.filter(t => isToolVisible(t.id));
+  el.innerHTML = visibleTools.map(t => `${t.name}${t.ver?' '+t.ver:''} → <code>${d}\\Claude Code tool\\${t.sub}</code>`).join('<br>');
   // Custom path fields
   const fld = document.getElementById('custPathFields'); if (!fld) return;
-  fld.innerHTML = TOOLS.map(t => {
+  fld.innerHTML = visibleTools.map(t => {
     const td = S.toolDrives[t.id] || d;
     return `<div style="display:flex;align-items:center;gap:8px"><span style="font-weight:600;font-size:11px;color:var(--text);width:110px">${t.name}</span><select data-tool="${t.id}" onchange="S.toolDrives['${t.id}']=this.value;refreshPaths()" style="width:70px">${optDrive(td)}</select><span style="font-size:10px;color:var(--text2)">→ ${td}\\Claude Code tool\\${t.sub}</span></div>`;
   }).join('');
@@ -539,24 +762,22 @@ function toggleCustomPaths() {
   else exp.classList.remove('show');
 }
 
-// ═══ PAGE 7: INSTALL ═══
+// ═══ PAGE 8: INSTALL ═══
 async function startInstall() {
   if (S.installing) return;
   S.installing = true; S.installDone = false;
   document.getElementById('btnInstall').disabled = true;
-  document.getElementById('btnInstall').textContent = '安装中...';
+  document.getElementById('btnInstall').textContent = S.lang==='zh'?'安装中...':'Installing...';
   document.getElementById('navBar').style.display = 'none';
-  document.getElementById('termLog').textContent = '正在启动安装引擎...';
+  document.getElementById('termLog').textContent = T('pg_install_starting');
   document.getElementById('progFill').style.width = '0%';
 
-  // Build settings - read custom paths directly from DOM
   const d = S.drive;
   const toolIds = ['node','git','npm','cctools','python','tesseract'];
   const toolDirs = ['NodeJS','Git','npm-global','cc-tools','Python312','Tesseract-OCR'];
   const drives = {};
   if (S.showCustomPaths) {
-    toolIds.forEach((id, i) => {
-      // Try reading from DOM dropdown first
+    toolIds.forEach((id) => {
       const sel = document.querySelector(`#custPathFields select[data-tool="${id}"]`);
       if (sel && sel.value) { drives[id] = sel.value; }
       else if (S.toolDrives[id]) { drives[id] = S.toolDrives[id]; }
@@ -569,7 +790,16 @@ async function startInstall() {
     NodePath: td(0), GitPath: td(1), NpmPrefix: td(2),
     ToolsPath: td(3), PythonPath: td(4), TesseractPath: td(5),
     PipPath: d+'\\Python-packages',
-    InstallTools: document.getElementById('chkTools')?.classList.contains('on') ?? true,
+    // Tool detection (forceReinstall overrides detection)
+    NodeOk: S.nodeOk && !S.forceReinstall['node'],
+    GitOk: S.gitOk && !S.forceReinstall['git'],
+    PythonOk: S.pythonOk && !S.forceReinstall['python'],
+    ClaudeOk: S.claudeOk && !S.forceReinstall['claude'],
+    // Tool selection
+    InstallGitTool: S.installGit,
+    InstallPythonTool: S.installPython,
+    InstallTesseract: S.installTesseract,
+    InstallTools: S.installScreenshot,
     InstallLogic: document.getElementById('chkLogic')?.classList.contains('on') ?? true,
     InstallCustomLogic: S.showCustomLogic,
     CustomLogicContent: document.getElementById('txtClaudeMd')?.value ?? '',
@@ -590,10 +820,10 @@ async function startInstall() {
   try {
     const r = await fetch(`${BASE()}/api/install`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(settings) });
     if (!r.ok) throw new Error('API error: '+r.status);
-    document.getElementById('termLog').textContent = '安装已启动，等待进度...';
+    document.getElementById('termLog').textContent = T('pg_install_started');
     S.timer = setInterval(pollProgress, 500);
   } catch(e) {
-    document.getElementById('termLog').textContent = '启动失败: ' + e.message;
+    document.getElementById('termLog').textContent = T('pg_install_fail') + e.message;
     S.installing = false; document.getElementById('btnInstall').disabled = false;
     document.getElementById('btnInstall').textContent = '开始安装';
   }
@@ -618,25 +848,26 @@ async function pollProgress() {
       S.installing = false;
       document.getElementById('navBar').style.display = 'flex';
       document.getElementById('btnInstall').disabled = false;
-      document.getElementById('btnInstall').textContent = '重试安装';
+      document.getElementById('btnInstall').textContent = T('pg_install_retry');
     }
   } catch(e) {}
 }
 
 function showCompleteModal() {
   const d = S.drive;
-  const td = (id) => (S.showCustomPaths && S.toolDrives[id]) ? S.toolDrives[id] : d;
-  const tools = TOOLS.map(t => `${t.name}${t.ver?' '+t.ver:''} → ${td(t.id)}\\Claude Code tool\\${t.sub}`).join('<br>');
+  const td2 = (id) => (S.showCustomPaths && S.toolDrives[id]) ? S.toolDrives[id] : d;
+  const visibleTools = TOOLS.filter(t => isToolVisible(t.id));
+  const tools = visibleTools.map(t => `${t.name}${t.ver?' '+t.ver:''} → ${td2(t.id)}\\Claude Code tool\\${t.sub}`).join('<br>');
   document.getElementById('modalContainer').innerHTML = `
     <div class="modal-overlay"><div class="modal-box">
-      <h2>✅ 安装完成!</h2><div class="mo-sub">Claude Code Installer v1.0.6 · Shimizu</div>
+      <h2>${T('modal_complete')}</h2><div class="mo-sub">Claude Code Installer v1.0.7 · Shimizu</div>
       <div class="mo-list">
-        <span class="cat">已安装工具</span>${tools}
-        <span class="cat" style="margin-top:12px">已安装 Skills</span>${S.skills.map(s => SKILL_NAMES[SKILLS.indexOf(s)]).join(', ')}
-        <span class="cat" style="margin-top:12px">配置</span>
-        settings.json → ~/.claude/<br>CLAUDE.md → ~/<br>桌面快捷方式: Claude Code / CC Switch
+        <span class="cat">${T('modal_tools')}</span>${tools}
+        <span class="cat" style="margin-top:12px">${T('modal_skills')}</span>${S.skills.map(s => SKILL_NAMES[SKILLS.indexOf(s)]).join(', ')}
+        <span class="cat" style="margin-top:12px">${T('modal_config')}</span>
+        ${T('modal_settings')}
       </div>
-      <button class="mo-btn" onclick="document.getElementById('modalContainer').innerHTML=''">完成</button>
+      <button class="mo-btn" onclick="document.getElementById('modalContainer').innerHTML=''">${T('modal_close')}</button>
     </div></div>
   `;
 }

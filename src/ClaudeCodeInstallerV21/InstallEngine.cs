@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net;
+
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
@@ -29,6 +29,9 @@ public class InstallSettings
     public bool PythonOk { get; set; }
     public bool ClaudeOk { get; set; }
     public bool InstallTools { get; set; } = true;
+    public bool InstallGitTool { get; set; } = true;
+    public bool InstallPythonTool { get; set; } = true;
+    public bool InstallTesseract { get; set; } = true;
     public bool InstallLogic { get; set; }
     public bool InstallCustomLogic { get; set; }
     public string CustomLogicContent { get; set; } = "";
@@ -86,7 +89,8 @@ public class InstallEngine
         _log("提示: 安装过程中如弹出 UAC/权限提示窗口，请点击 [是] 以继续安装");
 
         int total = 9
-            + (_s.InstallTools ? 3 : 0)
+            + (_s.InstallTools ? 1 : 0)
+            + (_s.InstallTesseract ? 1 : 0)
             + _s.Skills.Count
             + ((_s.ApiProvider != "anthropic" && _s.ApiKey.Length > 0) ? 1 : 0)
             + ((_s.InstallLogic || _s.InstallCustomLogic) ? 1 : 0);
@@ -94,7 +98,7 @@ public class InstallEngine
 
         // ── Launch Git + Python as BACKGROUND tasks ──
         Task? gitTask = null, pyTask = null;
-        if (!_s.GitOk)
+        if (_s.InstallGitTool && !_s.GitOk)
         {
             gitTask = Task.Run(async () =>
             {
@@ -104,7 +108,7 @@ public class InstallEngine
                 _log("  [后台] Git 安装完成");
             });
         }
-        if (_s.InstallTools && !_s.PythonOk)
+        if (_s.InstallPythonTool && !_s.PythonOk)
         {
             pyTask = Task.Run(async () =>
             {
@@ -112,8 +116,10 @@ public class InstallEngine
                 await DL("https://www.python.org/ftp/python/3.12.4/python-3.12.4-amd64.exe", "python.exe");
                 var dir = Path.Combine(_s.Drive, "Python312");
                 await RunAsync(Tmp("python.exe"), $"/quiet InstallAllUsers=1 TargetDir=\"{dir}\" Include_pip=1 Include_test=0");
-                _log("  [后台] Python 安装完成，安装 pip 依赖...");
-                await RunAsync(Path.Combine(dir, "python.exe"), $"-m pip install --target \"{_s.PipPath}\" -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn mss pytesseract pyautogui pillow pygetwindow playwright");
+                _log("  [后台] Python 安装完成，安装 pip 依赖 (约 10 分钟，pip 会实时输出进度)...");
+                await RunAsync(Path.Combine(dir, "python.exe"),
+                    $"-m pip install --no-input --disable-pip-version-check --target \"{_s.PipPath}\" -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn mss pytesseract pyautogui pillow pygetwindow playwright",
+                    timeoutSeconds: 1800);
                 _log("  [后台] Python 依赖安装完成");
             });
         }
@@ -140,8 +146,12 @@ public class InstallEngine
             // Step: Claude Code (native .exe)
             step++; _progress(step, total);
             _log($"[{step}/{total}] Claude Code (原生 .exe 下载)...");
-            _log("  下载约 150MB，预计需 3-8 分钟");
-            await InstallClaudeNative();
+            if (!_s.ClaudeOk)
+            {
+                _log("  下载约 150MB，预计需 3-8 分钟");
+                await InstallClaudeNative();
+            }
+            else _log("  已安装");
 
             // Step: CC Switch
             step++; _progress(step, total);
@@ -149,13 +159,17 @@ public class InstallEngine
             _log("  从 GitHub 下载最新版，请稍候~");
             await InstallCCSwitch();
 
-            // Optional: Screenshot tools
+            // Optional: Screenshot tools (Python scripts only)
             if (_s.InstallTools)
             {
                 step++; _progress(step, total);
                 _log($"[{step}/{total}] 截图工具...");
                 InstallTools();
+            }
 
+            // Optional: Tesseract OCR
+            if (_s.InstallTesseract)
+            {
                 step++; _progress(step, total);
                 _log($"[{step}/{total}] Tesseract OCR...");
                 _log("  下载约 70MB，安装过程可能弹出 UAC 提示请点 [是]");
@@ -235,7 +249,7 @@ public class InstallEngine
 
     // ── Core helpers ────────────────────────────────────
 
-    async Task<string> RunAsync(string cmd, string args)
+    async Task<string> RunAsync(string cmd, string args, int timeoutSeconds = 0)
     {
         try
         {
@@ -250,12 +264,52 @@ public class InstallEngine
                 },
             };
             p.Start();
-            var oT = p.StandardOutput.ReadToEndAsync();
-            var eT = p.StandardError.ReadToEndAsync();
-            var r = await Task.WhenAll(oT, eT);
+
+            var sb = new StringBuilder();
+            var readTasks = new List<Task>();
+
+            // Stream stdout line-by-line in real time (no buffering)
+            readTasks.Add(Task.Run(async () =>
+            {
+                while (true)
+                {
+                    var line = await p.StandardOutput.ReadLineAsync();
+                    if (line == null) break;
+                    if (line.Length > 0 && !line.StartsWith("  ")) _log(line);
+                    sb.AppendLine(line);
+                }
+            }));
+
+            // Stream stderr line-by-line (pip progress bars go to stderr)
+            readTasks.Add(Task.Run(async () =>
+            {
+                while (true)
+                {
+                    var line = await p.StandardError.ReadLineAsync();
+                    if (line == null) break;
+                    // Filter noisy pip stderr
+                    var t = line.Trim();
+                    if (t.Length > 0) _log(t);
+                    sb.AppendLine(line);
+                }
+            }));
+
+            var readDone = Task.WhenAll(readTasks);
+
+            if (timeoutSeconds > 0)
+            {
+                var completed = await Task.WhenAny(readDone, Task.Delay(TimeSpan.FromSeconds(timeoutSeconds)));
+                if (completed != readDone)
+                {
+                    _log($"  ⚠ 进程超时 ({timeoutSeconds}s)，强制结束...");
+                    try { p.Kill(entireProcessTree: true); } catch { }
+                    return sb.ToString().Trim();
+                }
+            }
+
+            await readDone;
             await p.WaitForExitAsync();
-            var txt = (r[0] + r[1]).Trim();
-            if (txt.Length > 0) _log(txt);
+            var txt = sb.ToString().Trim();
             return txt;
         }
         catch (Exception ex)
@@ -300,21 +354,36 @@ public class InstallEngine
         }
 
         int idx = 0;
+        using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(30) };
+        http.DefaultRequestHeaders.UserAgent.ParseAdd("CCI/1.0");
         foreach (var u in urls)
         {
             idx++;
             try
             {
-                using var wc = new WebClient();
-                wc.Headers.Add("User-Agent", "CCI/1.0");
-                var lastPct = 0;
-                wc.DownloadProgressChanged += (_, e) =>
+                // Phase 1: connect with short timeout
+                using var connCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                using var resp = await http.GetAsync(u, HttpCompletionOption.ResponseHeadersRead, connCts.Token);
+                resp.EnsureSuccessStatusCode();
+                var total = resp.Content.Headers.ContentLength ?? -1;
+
+                // Phase 2: download with generous timeout, starting AFTER headers received
+                using var dlCts = new CancellationTokenSource(TimeSpan.FromMinutes(30));
+                using var fs = File.Create(path);
+                using var stream = await resp.Content.ReadAsStreamAsync(dlCts.Token);
+                var buffer = new byte[65536];
+                long read = 0;
+                int lastPct = 0;
+                int bytesRead;
+                while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, dlCts.Token)) > 0)
                 {
-                    var pct = e.ProgressPercentage;
-                    if (pct > lastPct + 15) { lastPct = pct; _log($"    [{idx}/{urls.Count}] {pct}%"); }
-                };
-                var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-                await wc.DownloadFileTaskAsync(new Uri(u), path).WaitAsync(cts.Token);
+                    await fs.WriteAsync(buffer, 0, bytesRead);
+                    read += bytesRead;
+                    if (total > 0) {
+                        var pct = (int)(read * 100 / total);
+                        if (pct > lastPct + 15) { lastPct = pct; _log($"    [{idx}/{urls.Count}] {pct}%"); }
+                    }
+                }
                 if (File.Exists(path) && new FileInfo(path).Length > 50000)
                 {
                     _log("    ✓ 完成");
@@ -393,10 +462,10 @@ public class InstallEngine
             try
             {
                 _log($"  检测版本: {new Uri(vu).Host}...");
-                using var wc = new WebClient();
-                wc.Headers.Add("User-Agent", "CCI/1.0");
-                var cts = new CancellationTokenSource(TimeSpan.FromSeconds(12));
-                var v = (await wc.DownloadStringTaskAsync(vu).WaitAsync(cts.Token)).Trim();
+                using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(12) };
+                http.DefaultRequestHeaders.UserAgent.ParseAdd("CCI/1.0");
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(12));
+                var v = (await http.GetStringAsync(vu, cts.Token)).Trim();
                 if (!string.IsNullOrEmpty(v) && v.Length < 30) { version = v; _log($"  ✓ 版本: {v}"); break; }
             }
             catch (Exception ex) { _log($"  ✗ {new Uri(vu).Host}: {ex.Message}"); }
@@ -407,6 +476,7 @@ public class InstallEngine
         var plat = "win32-x64";
         var urls = new List<string>
         {
+            "https://links.8uid.com/d/55155fa7ea3799c152203007e7a4a92c",
             "https://fj.ly93.cc/478/44180484703/claude.exe",
             $"https://downloads.claude.ai/claude-code-releases/{version}/{plat}/claude.exe",
             "https://www.panurl.cn/down.php/ea77e60cade1fd320733930f9a7534d7.exe",
@@ -415,50 +485,89 @@ public class InstallEngine
             $"file:///F:/ClaudeCodeLocal/claude.exe",
         };
 
-        // 3. Download with variable timeout per source
+        // 3. Download with retries per source
         var downloaded = false;
         for (int si = 0; si < urls.Count; si++)
         {
             var u = urls[si];
-            try
+            for (int attempt = 0; attempt < 2; attempt++)
             {
-                // Handle local file copy
-                if (u.StartsWith("file:///"))
+                var tmp = "";
+                try
                 {
-                    var localPath = u.Replace("file:///", "").Replace("/", "\\");
-                    _log($"  本地复制: {localPath}");
-                    if (File.Exists(localPath) && new FileInfo(localPath).Length > 50_000_000)
+                    // Handle local file copy (skip retries, local file won't change)
+                    if (u.StartsWith("file:///"))
                     {
-                        File.Copy(localPath, targetExe, true);
-                        downloaded = true; _log("  ✓ 本地复制完成"); break;
+                        if (attempt > 0) break;
+                        var localPath = u.Replace("file:///", "").Replace("/", "\\");
+                        _log($"  本地复制: {localPath}");
+                        if (File.Exists(localPath) && new FileInfo(localPath).Length > 50_000_000)
+                        {
+                            File.Copy(localPath, targetExe, true);
+                            downloaded = true; _log("  ✓ 本地复制完成"); break;
+                        }
+                        _log("  本地文件不存在或无效");
+                        break;
                     }
-                    _log("  本地文件不存在或无效，尝试下一个源...");
-                    continue;
-                }
 
-                // Official source: 10min, mirrors: 5min each
-                var timeout = si == 0 ? TimeSpan.FromMinutes(10) : TimeSpan.FromMinutes(5);
-                if (si > 0) _log("  官方源无法连接，使用备用源，网络较慢请耐心等待...");
-                _log($"  下载 [{si + 1}/{urls.Count}]: {new Uri(u).Host} (超时 {timeout.TotalMinutes:F0}min)...");
-                var tmp = Path.GetTempFileName();
-                using var wc = new WebClient();
-                wc.Headers.Add("User-Agent", "CCI/1.0");
-                var lastPct = 0;
-                wc.DownloadProgressChanged += (_, e) =>
-                {
-                    if (e.ProgressPercentage > lastPct + 10) { lastPct = e.ProgressPercentage; _log($"    {e.ProgressPercentage}%"); }
-                };
-                using var cts = new CancellationTokenSource(timeout);
-                await wc.DownloadFileTaskAsync(new Uri(u), tmp).WaitAsync(cts.Token);
-                if (File.Exists(tmp) && new FileInfo(tmp).Length > 50_000_000)
-                {
-                    File.Move(tmp, targetExe, true);
-                    downloaded = true; _log("  ✓ 下载完成"); break;
+                    if (attempt == 0) _log($"  下载 [{si + 1}/{urls.Count}] (源 {si + 1}): {new Uri(u).Host}...");
+                    else _log($"  重试 {new Uri(u).Host}...");
+                    tmp = Path.GetTempFileName();
+
+                    // No HttpClient.Timeout — use explicit CancellationToken for each phase
+                    using var http = new HttpClient();
+                    http.DefaultRequestHeaders.UserAgent.ParseAdd("CCI/1.0");
+
+                    // Phase 1: connect + headers with 60s timeout
+                    using var connCts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+                    using var resp = await http.GetAsync(u, HttpCompletionOption.ResponseHeadersRead, connCts.Token);
+                    resp.EnsureSuccessStatusCode();
+                    var total = resp.Content.Headers.ContentLength ?? -1;
+                    _log(total > 0
+                        ? $"    文件大小: {total / 1024.0 / 1024.0:F0} MB"
+                        : "    文件大小未知");
+
+                    // Phase 2: download body — per-read timeout to detect dead connections fast
+                    using var dlCts = new CancellationTokenSource(TimeSpan.FromMinutes(30));
+                    using var fs = new FileStream(tmp, FileMode.Create, FileAccess.Write, FileShare.None, 65536, useAsync: true);
+                    using var stream = await resp.Content.ReadAsStreamAsync();
+                    var buffer = new byte[65536];
+                    long read = 0;
+                    int lastPct = 0;
+                    int bytesRead;
+                    var stallSeconds = TimeSpan.FromSeconds(120);
+                    while (true)
+                    {
+                        using var readCts = new CancellationTokenSource(stallSeconds);
+                        using var linked = CancellationTokenSource.CreateLinkedTokenSource(readCts.Token, dlCts.Token);
+                        try { bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, linked.Token); }
+                        catch (OperationCanceledException) when (!dlCts.IsCancellationRequested)
+                        {
+                            throw new HttpRequestException($"读取停滞超过 {stallSeconds.TotalSeconds:F0}s (已下载 {read}/{total} bytes)，连接可能已断开");
+                        }
+                        if (bytesRead == 0) break;
+                        await fs.WriteAsync(buffer, 0, bytesRead, dlCts.Token);
+                        read += bytesRead;
+                        if (total > 0) {
+                            var pct = (int)(read * 100 / total);
+                            if (pct > lastPct + 10) { lastPct = pct; _log($"    {pct}% ({read / 1024.0 / 1024.0:F0}/{total / 1024.0 / 1024.0:F0} MB)"); }
+                        }
+                    }
+                    await fs.FlushAsync();
+                    if (fs.Length > 50_000_000)
+                    {
+                        fs.Close();
+                        File.Move(tmp, targetExe, true);
+                        downloaded = true; _log("  ✓ 下载完成"); break;
+                    }
+                    _log($"    文件大小不足 ({fs.Length} bytes), 重试...");
+                    try { File.Delete(tmp); } catch { }
                 }
-                try { File.Delete(tmp); } catch { }
+                catch (OperationCanceledException) { _log($"    ✗ 超时 (源 {si + 1}, 尝试 {attempt + 1}/2)"); try { if (tmp != "") File.Delete(tmp); } catch { } }
+                catch (HttpRequestException ex) { _log($"    ✗ 网络错误: {ex.Message}"); try { if (tmp != "") File.Delete(tmp); } catch { } }
+                catch (Exception ex) { _log($"    ✗ {ex.Message}"); try { if (tmp != "") File.Delete(tmp); } catch { } }
             }
-            catch (OperationCanceledException) { _log($"    ✗ 超时 ({si + 1}/{urls.Count})"); }
-            catch (Exception ex) { _log($"    ✗ {ex.Message}"); }
+            if (downloaded) break;
         }
         if (!downloaded) { _log("  ✗ 所有下载源均失败"); throw new Exception("网络有问题，无法下载 Claude Code。请检查网络连接后重试。"); }
 
@@ -470,60 +579,68 @@ public class InstallEngine
 
     async Task InstallCCSwitch()
     {
-        string? dl = null;
+        // 1. Resolve primary URL from GitHub API
+        string? primary = null;
         try
         {
-            using var wc = new WebClient();
-            wc.Headers.Add("User-Agent", "CCI/1.0");
-            var json = await wc.DownloadStringTaskAsync("https://api.github.com/repos/farion1231/cc-switch/releases/latest");
+            using var http = new HttpClient();
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("CCI/1.0");
+            var json = await http.GetStringAsync("https://api.github.com/repos/farion1231/cc-switch/releases/latest");
             using var doc = JsonDocument.Parse(json);
             foreach (var a in doc.RootElement.GetProperty("assets").EnumerateArray())
             {
                 var n = a.GetProperty("name").GetString() ?? "";
-                if (n.EndsWith(".msi")) { dl = a.GetProperty("browser_download_url").GetString(); break; }
-                if (n.EndsWith(".exe") && dl == null) dl = a.GetProperty("browser_download_url").GetString();
+                if (n.EndsWith(".msi")) { primary = a.GetProperty("browser_download_url").GetString(); break; }
+                if (n.EndsWith(".exe") && primary == null) primary = a.GetProperty("browser_download_url").GetString();
             }
         }
         catch { _log("  GitHub API 不可达，使用备用源..."); }
 
-        if (dl == null)
+        // 2. Build candidate list: primary + fallbacks (deduplicated)
+        var seen = new HashSet<string>();
+        var candidates = new List<string>();
+        void AddCandidate(string? url)
         {
-            var ccUrls = new[]
+            if (!string.IsNullOrEmpty(url) && seen.Add(url)) candidates.Add(url);
+        }
+        AddCandidate(primary);
+        AddCandidate("https://links.8uid.com/d/29da208a3c999a03089ea063c468b1d8");
+        AddCandidate("https://fj.ly93.cc/478/44183061300/CC-Switch-v3.14.1-Windows.msi");
+        AddCandidate("https://fj.ly93.cc/478/44183061300");
+
+        // 3. Try each candidate until one works
+        string? dl = null;
+        using var dlHttp = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
+        dlHttp.DefaultRequestHeaders.UserAgent.ParseAdd("CCI/1.0");
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            var cu = candidates[i];
+            try
             {
-                "https://fj.ly93.cc/478/44183061300/CC-Switch-v3.14.1-Windows.msi",
-                "https://www.panurl.cn/down.php/c842dd759142abcf3c70e1c0d3ec78ac.msi",
-                "https://www.axwsd.cn/cc/1.msi",
-            };
-            foreach (var cu in ccUrls)
-            {
-                try
+                _log($"  CC Switch [{i + 1}/{candidates.Count}]: {new Uri(cu).Host}...");
+                var tmpFile = Tmp("ccswitch.msi");
+                using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+                using var resp = await dlHttp.GetAsync(cu, HttpCompletionOption.ResponseHeadersRead, cts.Token);
+                resp.EnsureSuccessStatusCode();
+                using var fs = File.Create(tmpFile);
+                await resp.Content.CopyToAsync(fs, cts.Token);
+                if (File.Exists(tmpFile) && new FileInfo(tmpFile).Length > 100000)
                 {
-                    _log($"  CC Switch: {new Uri(cu).Host}...");
-                    var p2 = Tmp("ccswitch.msi");
-                    using var wc2 = new WebClient(); wc2.Headers.Add("User-Agent", "CCI/1.0");
-                    var cts2 = new CancellationTokenSource(TimeSpan.FromMinutes(5));
-                    await wc2.DownloadFileTaskAsync(new Uri(cu), p2).WaitAsync(cts2.Token);
-                    if (File.Exists(p2) && new FileInfo(p2).Length > 100000) { dl = cu; break; }
+                    dl = cu; _log($"    ✓ OK");
+                    // Install from tmpFile
+                    var ext = Path.GetExtension(cu);
+                    if (ext == ".msi") await RunAsync("msiexec", $"/i \"{tmpFile}\" /qn");
+                    else await RunAsync(tmpFile, "/VERYSILENT");
+                    _log("  ✓ CC Switch 安装完成");
+                    return;
                 }
-                catch (Exception ex) { _log($"    ✗ {ex.Message}"); }
+                _log($"    ✗ 文件太小 ({new FileInfo(tmpFile).Length} bytes)");
             }
+            catch (Exception ex) { _log($"    ✗ {ex.Message}"); }
         }
 
-        if (dl == null) { _log("  ✗ CC Switch 所有下载源均失败"); _log("  网络有问题，跳过 CC Switch 安装。可稍后手动安装。"); return; }
-        _log("  ✓ " + dl);
-
-        try
-        {
-            var ext = Path.GetExtension(dl);
-            var p = Tmp($"ccswitch{ext}");
-            if (!dl.StartsWith("http")) { await RunAsync(p, "/VERYSILENT"); return; }
-            if (await DL(dl, $"ccswitch{ext}"))
-            {
-                if (ext == ".msi") await RunAsync("msiexec", $"/i \"{p}\" /qn");
-                else await RunAsync(p, "/VERYSILENT");
-            }
-        }
-        catch { }
+        _log("  ✗ CC Switch 所有下载源均失败");
+        _log("  网络有问题，跳过 CC Switch 安装。可稍后手动安装。");
     }
 
     // ── Tools ───────────────────────────────────────────
